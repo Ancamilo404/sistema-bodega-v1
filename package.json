@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "postinstall": "prisma generate",
     "test": "jest --runInBand",
     "test:unit": "jest --runInBand tests/unit",
     "test:integration": "jest --runInBand tests/integration"
@@ -56,6 +57,9 @@
     "ts-node": "^10.9.2",
     "typescript": "^5",
     "vitest": "^4.0.4"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
