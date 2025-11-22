@@ -1,0 +1,271 @@
+﻿===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\lib\auth.ts =====
+import { SignJWT, jwtVerify } from "jose";
+
+// âš ï¸ Usa siempre la variable de entorno en producciÃ³n
+const SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "1234");
+
+// ðŸ‘‰ Firmar un token
+export async function signToken(payload: { id: number; rol: string }) {
+  return await new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(SECRET);
+}
+
+// ðŸ‘‰ Verificar un token
+export async function verifyToken(token: string) {
+  try {
+    const { payload } = await jwtVerify(token, SECRET);
+    return payload as { id: number; rol: string; iat: number; exp: number };
+  } catch {
+    return null;
+  }
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\lib\errors.ts =====
+// src/lib/errors.ts
+export const Errors = {
+  NoAutorizado: { status: 403, error: "No autorizado" },
+  EntradaInvalida: (msg = "Entrada invÃ¡lida") => ({ status: 400, error: msg }),
+  EntidadNoEncontrada: (nombre = "Entidad") => ({ status: 404, error: `${nombre} no encontrado` }),
+  Duplicado: (campo = "Documento") => ({ status: 409, error: `${campo} ya registrado` }),
+  ErrorServidor: (msg = "Error interno") => ({ status: 500, error: msg }),
+};
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\lib\formatDate.ts =====
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+
+export default function formatDateTime(dateInput: string | Date | null | undefined) {
+  if (!dateInput) return "";
+
+  // Si ya es Date, Ãºsalo directamente
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+
+  // Validar que sea fecha vÃ¡lida
+  if (isNaN(date.getTime())) {
+    console.warn("Fecha invÃ¡lida recibida en formatDateTime:", dateInput);
+    return "";
+  }
+
+  return format(date, "dd/MM/yyyy HH:mm", { locale: es });
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\lib\getAuthUser.ts =====
+// src/lib/getAuthUser.ts
+import { cookies } from "next/headers";
+import { verifyToken } from "@/lib/auth";
+
+export async function getAuthUser(req: Request) {
+  try {
+    // âœ… Leer cookie "auth"
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth")?.value;
+    if (!token) return null;
+
+    // âœ… Verificar token con jose
+    const payload = await verifyToken(token);
+    if (!payload) return null;
+
+    // âœ… Retornar usuario con id y rol
+    return { id: payload.id, rol: payload.rol };
+  } catch {
+    return null;
+  }
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\lib\logHistorial.ts =====
+import { prisma } from "@/lib/prisma";
+import type { TipoAccion } from "@/types/historial";
+
+export async function logHistorial({
+  tipo,
+  accion,
+  entidad,
+  entidadId,
+  usuarioId,
+  detalle,
+  ip,
+}: {
+  tipo: TipoAccion;
+  accion: string;
+  entidad?: string;
+  entidadId?: number;
+  usuarioId: number;
+  detalle?: any;
+  ip?: string;
+}) {
+  return prisma.historial.create({
+    data: {
+      tipo,
+      accion,
+      entidad,
+      entidadId,
+      usuarioId,
+      ip,
+      detalle:
+        detalle === undefined || detalle === null
+          ? undefined
+          : typeof detalle === "string"
+          ? detalle
+          : JSON.stringify(detalle),
+    },
+  });
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\lib\prisma.ts =====
+// src/lib/prisma.ts
+import { PrismaClient } from "@prisma/client";
+
+declare global {
+  // eslint-disable-next-line no-var
+  var prisma: PrismaClient | undefined;
+}
+
+export const prisma =
+  global.prisma ||
+  new PrismaClient({
+    log: ["warn", "error"],
+  });
+
+if (process.env.NODE_ENV !== "production") global.prisma = prisma;
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\lib\response.ts =====
+// Helper unificado de respuestas
+export function response(
+  { data = null, message = null, error = null }: 
+  { data?: any; message?: string | null; error?: string | null },
+  status: number = 200
+) {
+  return new Response(
+    JSON.stringify({ data, message, error }),
+    {
+      status,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\lib\search.ts =====
+type SearchConfig = {
+  table: string;              // Ej: "Cliente"
+  fullTextColumns: string[];  // Ej: ["nombre", "documento", "direccion", "telefono"]
+  fallbackColumns?: string[]; // Ej: ["id", "tipoId", "fechaRegistro", "estado"]
+};
+
+export function buildSearchQuery(config: SearchConfig, searchParam: string) {
+  const { table, fullTextColumns, fallbackColumns = [] } = config;
+
+  // Construir el vector para full-text
+  const vector = fullTextColumns
+    .map(col => `coalesce("${col}", '')`)
+    .join(` || ' ' || `);
+
+  // CondiciÃ³n full-text
+  let where = `
+    to_tsvector('spanish', ${vector}) @@ plainto_tsquery('spanish', $1)
+  `;
+
+  // Condiciones fallback con ILIKE
+  for (const col of fallbackColumns) {
+    where += ` OR CAST("${col}" AS TEXT) ILIKE '%' || $1 || '%'`;
+  }
+
+  // Query final
+  return `
+    SELECT *,
+      ts_rank(
+        to_tsvector('spanish', ${vector}),
+        plainto_tsquery('spanish', $1)
+      ) AS rank
+    FROM "${table}"
+    WHERE (${where})
+    ORDER BY rank DESC;
+  `;
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\lib\testToken.ts =====
+import { signToken, verifyToken } from "./auth";
+
+const token = signToken({ id: 1, rol: "ADMIN" });
+console.log("TOKEN:", token);
+
+const user = verifyToken(token);
+console.log("USER:", user);
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\lib\validateBody.ts =====
+// src/lib/validateBody.ts
+import { ZodSchema } from "zod";
+import { response } from "@/lib/response";
+import { Errors } from "@/lib/errors";
+
+export async function validateBody<T>(req: Request, schema: ZodSchema<T>) {
+  const body = await req.json();
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) {
+    const details = parsed.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("; ");
+    throw { ...Errors.EntradaInvalida(details), code: "VALIDATION" };
+  }
+  return parsed.data;
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\lib\validateVentaEntities.ts =====
+import { prisma } from "@/lib/prisma";
+
+export async function validateVentaEntities({
+  usuarioId,
+  clienteId,
+  items,
+}: {
+  usuarioId: number;
+  clienteId: number;
+  items: { productoId: number; cantidad: number }[];
+}) {
+  // Validar usuario
+  const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
+  if (!usuario || usuario.estado === "BLOQUEADO") {
+    throw new Error("El usuario estÃ¡ bloqueado");
+  }
+
+  // Validar cliente
+  const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
+  if (!cliente || cliente.estado === "BLOQUEADO") {
+    throw new Error("El cliente estÃ¡ bloqueado o no existe");
+  }
+
+  // Validar productos
+  for (const i of items) {
+    const producto = await prisma.producto.findUnique({ where: { id: i.productoId } });
+    if (!producto) throw new Error(`Producto ${i.productoId} no encontrado`);
+    if (producto.estado === "BLOQUEADO") throw new Error(`Producto ${producto.nombre} bloqueado`);
+    if (producto.stock < i.cantidad) throw new Error(`Stock insuficiente para ${producto.nombre}`);
+  }
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\lib\verifyTest.ts =====
+import jwt from "jsonwebtoken";
+
+const SECRET = "1234"; // el mismo que en auth.ts
+const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwicm9sIjoiQURNSU4iLCJpYXQiOjE3NjIyNjU1NDYsImV4cCI6MTc2MjI2OTE0Nn0.dRccdr5WKzx0Rb-v7Q6IQ58vVTPAMYe5UQK8dVx9Uys".trim();
+
+
+try {
+  const decoded = jwt.verify(token, SECRET);
+  console.log("Decoded:", decoded);
+} catch (e) {
+  console.error("Error verificando token:", e);
+}
+
+

@@ -1,0 +1,305 @@
+/* ========================================
+   CRUD PAGES RESPONSIVE
+   Archivo: src/app/style/crud-responsive-pages.css
+   Páginas: Aliados, Clientes, Productos, Usuarios
+   ======================================== */
+
+/* ========================================
+   LAYOUT COMÚN CRUD
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Ajustar layout principal */
+  .main-layout-wrapper {
+    flex-direction: column;
+  }
+
+  /* Sidebar horizontal en móvil */
+  .sidebar-container {
+    width: 100% !important;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 2px solid var(--color-10);
+  }
+
+  /* Imagen del sidebar más pequeña */
+  .sidebar-image {
+    max-width: 60px;
+    max-height: 60px;
+  }
+
+  .sidebar-image img {
+    max-height: 100px;
+  }
+}
+
+/* ========================================
+   PRODUCTOS - GRID DE PRECIOS
+   ======================================== */
+
+@media (max-width: 968px) {
+  /* Ajustar columnas de productos */
+  .data-table th[data-key="precio"],
+  .data-table td[data-key="precio"] {
+    min-width: 80px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Hacer scroll horizontal más suave */
+  .table-wrapper {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Priorizar columnas importantes en móvil */
+  .data-table th[data-key="id"],
+  .data-table td[data-key="id"] {
+    min-width: 40px;
+  }
+
+  .data-table th[data-key="nombre"],
+  .data-table td[data-key="nombre"] {
+    min-width: 120px;
+    max-width: 150px;
+  }
+
+  .data-table th[data-key="precio"],
+  .data-table td[data-key="precio"] {
+    min-width: 70px;
+  }
+
+  .data-table th[data-key="stock"],
+  .data-table td[data-key="stock"] {
+    min-width: 60px;
+  }
+}
+
+/* ========================================
+   USUARIOS - COLUMNAS ESPECÍFICAS
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Ajustar columnas de usuarios */
+  .data-table th[data-key="documento"],
+  .data-table td[data-key="documento"] {
+    min-width: 100px;
+  }
+
+  .data-table th[data-key="correo"],
+  .data-table td[data-key="correo"] {
+    min-width: 150px;
+    max-width: 200px;
+  }
+
+  .data-table th[data-key="rol"],
+  .data-table td[data-key="rol"] {
+    min-width: 80px;
+  }
+}
+
+/* ========================================
+   CLIENTES Y ALIADOS - INFO CONTACTO
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Columnas de contacto */
+  .data-table th[data-key="telefono"],
+  .data-table td[data-key="telefono"] {
+    min-width: 100px;
+  }
+
+  .data-table th[data-key="direccion"],
+  .data-table td[data-key="direccion"] {
+    min-width: 120px;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* ========================================
+   MODAL PRODUCTOS/VENTAS
+   ======================================== */
+
+@media (max-width: 768px) {
+  .modal-list {
+    max-height: 300px;
+    font-size: 12px;
+  }
+
+  .modal-list li {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .modal-load-more {
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  .modal-empty {
+    padding: 30px;
+    font-size: 14px;
+  }
+}
+
+/* ========================================
+   BOTONES LATERALES MÓVIL
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Sidebar buttons en scroll horizontal */
+  .sidebar-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 5px;
+  }
+
+  .sidebar-button {
+    min-width: 80px;
+    white-space: nowrap;
+  }
+
+  .btn-volver {
+    background-color: var(--color-9);
+    order: -1; /* Volver siempre primero */
+  }
+}
+
+/* ========================================
+   INFORMACIÓN SIDEBAR EN MÓVIL
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Ocultar info por defecto */
+  .sidebar-info {
+    display: none;
+  }
+
+  /* Botón para mostrar info en móvil */
+  .sidebar-container::after {
+    content: "ℹ️ Ver Info";
+    display: block;
+    padding: 8px;
+    text-align: center;
+    background: var(--color-10);
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-top: 10px;
+  }
+
+  /* Cuando se activa, mostrar como modal */
+  .sidebar-container.show-info .sidebar-info {
+    display: block;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    z-index: 1000;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    max-width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .sidebar-container.show-info::after {
+    content: "✕ Cerrar";
+  }
+
+  /* Overlay oscuro */
+  .sidebar-container.show-info::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+  }
+}
+
+/* ========================================
+   PENDING/EDITED ROWS EN MÓVIL
+   ======================================== */
+
+@media (max-width: 768px) {
+  .pending-row {
+    border-left-width: 3px;
+  }
+
+  .pending-row td {
+    font-size: 11px;
+  }
+}
+
+/* ========================================
+   IMAGEN DE PRODUCTO/ALIADO
+   ======================================== */
+
+@media (max-width: 768px) {
+  .sidebar-image {
+    width: 100%;
+    max-width: 120px;
+    height: auto;
+  }
+
+  .sidebar-image img {
+    max-height: 120px;
+    object-fit: cover;
+  }
+
+  .sidebar-image .icon {
+    font-size: 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar-image {
+    max-width: 80px;
+  }
+
+  .sidebar-image img {
+    max-height: 80px;
+  }
+
+  .sidebar-image .icon {
+    font-size: 24px;
+  }
+}
+
+/* ========================================
+   SCROLL SUAVE EN TABLAS
+   ======================================== */
+
+@media (max-width: 768px) {
+  .table-wrapper {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Indicador visual de scroll */
+  .table-wrapper::after {
+    content: "← Desliza →";
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: var(--color-3);
+    text-align: center;
+    padding: 4px;
+    font-size: 10px;
+    color: var(--color-8);
+    opacity: 0.7;
+  }
+
+  /* Ocultar cuando no hay scroll */
+  .table-wrapper:not([data-has-scroll])::after {
+    display: none;
+  }
+}

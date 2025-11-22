@@ -1,0 +1,85 @@
+﻿===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\api\ventas\[ventaId]\confirmar\route.ts =====
+import { prisma } from "@/lib/prisma";
+import { response } from "@/lib/response";
+import { getAuthUser } from "@/lib/getAuthUser";
+import { validateVentaEntities } from "@/lib/validateVentaEntities";
+import { logHistorial } from "@/lib/logHistorial";
+
+export async function PATCH(req: Request, { params }: { params: { ventaId: string } }) {
+  try {
+    const user = await getAuthUser(req);
+    if (!user || !["ADMIN", "TRABAJADOR"].includes(user.rol)) {
+      return response({ error: "No autorizado" }, 403);
+    }
+
+    const ventaId = Number(params.ventaId);
+    if (Number.isNaN(ventaId)) return response({ error: "ID invÃ¡lido" }, 400);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const venta = await tx.venta.findUnique({
+        where: { id: ventaId },
+        include: { cliente: true, items: true },
+      });
+      if (!venta) throw new Error("Venta no encontrada");
+      if (venta.estado === "CONFIRMADA") throw new Error("La venta ya estÃ¡ confirmada");
+      if (venta.estado === "ANULADA") throw new Error("No se puede confirmar una venta anulada");
+
+      await validateVentaEntities({
+        usuarioId: user.id,
+        clienteId: venta.clienteId,
+        items: venta.items.map(i => ({ productoId: i.productoId, cantidad: i.cantidad })),
+      });
+
+      let total = 0;
+      for (const item of venta.items) {
+        const producto = await tx.producto.findUnique({ where: { id: item.productoId } });
+        if (!producto) throw new Error(`Producto ${item.productoId} no encontrado`);
+
+        const precioUnitario = producto.precio;
+        const subtotal = Number(precioUnitario) * item.cantidad;
+        total += subtotal;
+
+        await tx.ventaProducto.update({
+          where: { id: item.id },
+          data: { precioUnitario, subtotal },
+        });
+
+        await tx.producto.update({
+          where: { id: item.productoId },
+          data: { stock: { decrement: item.cantidad } },
+        });
+      }
+
+      const confirmada = await tx.venta.update({
+        where: { id: ventaId },
+        data: { estado: "CONFIRMADA", total },
+        include: { cliente: true, usuario: true, items: { include: { producto: true } } },
+      });
+
+      await logHistorial({
+        tipo: "ACTUALIZAR",
+        accion: `Venta ${confirmada.referencia} confirmada`,
+        entidad: "Venta",
+        entidadId: confirmada.id,
+        usuarioId: user.id,
+        detalle: {
+          total: confirmada.total,
+          items: confirmada.items.map(i => ({
+            producto: i.productoId,
+            cantidad: i.cantidad,
+            subtotal: i.subtotal,
+          })),
+        },
+        ip: req.headers.get("x-forwarded-for") || undefined,
+      });
+
+      return confirmada;
+    });
+
+    return response({ data: result, message: "Venta confirmada correctamente" });
+  } catch (e: any) {
+    return response({ error: e.message || "Error al confirmar venta" }, 500);
+  }
+}
+
+

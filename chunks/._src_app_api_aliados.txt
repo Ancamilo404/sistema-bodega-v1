@@ -1,0 +1,363 @@
+﻿===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\api\aliados\route.ts =====
+import { prisma } from "@/lib/prisma";
+import { response } from "@/lib/response";
+import { getAuthUser } from "@/lib/getAuthUser";
+import { logHistorial } from "@/lib/logHistorial";
+import { validateBody } from "@/lib/validateBody";
+import { aliadoSchema } from "@/schemas/aliado";
+import DOMPurify from "isomorphic-dompurify";
+
+// GET /api/aliados?search=...&estado=...&documento=...&fechaInicio=...&fechaFin=...
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+
+    const search = searchParams.get("search") || "";
+    const estado = searchParams.get("estado")?.toUpperCase();
+    const documento = searchParams.get("documento") || "";
+    const fechaInicio = searchParams.get("fechaInicio");
+    const fechaFin = searchParams.get("fechaFin");
+
+    let query = `
+      SELECT 
+        a.*,
+        CAST((SELECT COUNT(*) FROM "Producto" p WHERE p."aliadoId" = a.id AND p."deletedAt" IS NULL) AS INTEGER) as "productosCount",
+        ts_rank(
+          to_tsvector('spanish',
+            coalesce(a.nombre,'') || ' ' ||
+            coalesce(a.documento,'') || ' ' ||
+            coalesce(a.telefono,'') || ' ' ||
+            coalesce(a.correo,'') || ' ' ||
+            coalesce(a.direccion,'')
+          ),
+          plainto_tsquery('spanish', $1)
+        ) AS rank
+      FROM "Aliado" a
+      WHERE a."deletedAt" IS NULL
+      AND (
+        $1 = '' OR
+        to_tsvector('spanish',
+          coalesce(a.nombre,'') || ' ' ||
+          coalesce(a.documento,'') || ' ' ||
+          coalesce(a.telefono,'') || ' ' ||
+          coalesce(a.correo,'') || ' ' ||
+          coalesce(a.direccion,'')
+        ) @@ plainto_tsquery('spanish', $1)
+        OR a.nombre ILIKE '%' || $1 || '%'
+        OR a.documento ILIKE '%' || $1 || '%'
+        OR a.telefono ILIKE '%' || $1 || '%'
+        OR a.correo ILIKE '%' || $1 || '%'
+        OR a.direccion ILIKE '%' || $1 || '%'
+        OR CAST(a.id AS TEXT) ILIKE '%' || $1 || '%'
+        OR CAST(a."tipoId" AS TEXT) ILIKE '%' || $1 || '%'
+        OR CAST(a."fechaRegistro" AS TEXT) ILIKE '%' || $1 || '%'
+        OR CAST(a.estado AS TEXT) ILIKE '%' || $1 || '%'
+      )
+    `;
+
+    const params: any[] = [search];
+
+    if (estado && ["ACTIVO", "BLOQUEADO"].includes(estado)) {
+      query += ` AND a.estado = $${params.length + 1}`;
+      params.push(estado);
+    }
+
+    if (documento) {
+      query += ` AND a.documento = $${params.length + 1}`;
+      params.push(documento);
+    }
+
+    if (fechaInicio && fechaFin) {
+      query += ` AND a."fechaRegistro" BETWEEN $${params.length + 1} AND $${params.length + 2}`;
+      params.push(new Date(fechaInicio), new Date(fechaFin));
+    }
+
+    query += ` ORDER BY rank DESC, a."fechaRegistro" DESC`;
+
+    const aliados = await prisma.$queryRawUnsafe(query, ...params);
+
+    // âœ… Serializar fechas y agregar conteo
+    const aliadosSerializados = (aliados as any[]).map((a) => ({
+      ...a,
+      fechaRegistro: a.fechaRegistro?.toISOString() || null,
+      productos: Number(a.productosCount || 0), // â¬…ï¸ PostgreSQL devuelve en minÃºsculas
+    }));
+
+    return response({
+      data: aliadosSerializados,
+      message: "Aliados listados correctamente",
+    });
+  } catch (e: any) {
+    console.error("Error en /api/aliados:", e);
+    return response({ error: e.message || "Error al listar aliados" }, 500);
+  }
+}
+
+// POST /api/aliados â†’ crea o reactiva aliado
+export async function POST(req: Request) {
+  try {
+    const user = await getAuthUser(req);
+    if (!user || !["ADMIN", "TRABAJADOR"].includes(user.rol)) {
+      return response({ error: "No autorizado" }, 403);
+    }
+
+    const body = await validateBody(req, aliadoSchema);
+    if (body.documento) {
+      body.documento = DOMPurify.sanitize(body.documento.trim());
+    }
+    if (body.telefono) body.telefono = body.telefono.trim();
+    if (body.correo) body.correo = body.correo.trim();
+
+    const existing = await prisma.aliado.findUnique({
+      where: { documento: body.documento },
+    });
+
+    let result;
+    if (existing && existing.deletedAt) {
+      result = await prisma.aliado.update({
+        where: { id: existing.id },
+        data: { ...body, deletedAt: null, estado: "ACTIVO" },
+      });
+
+      await logHistorial({
+        tipo: "ACTUALIZAR",
+        accion: `Aliado ${result.nombre} reactivado`,
+        entidad: "Aliado",
+        entidadId: result.id,
+        usuarioId: user.id,
+        detalle: result,
+        ip: req.headers.get("x-forwarded-for") || undefined,
+      });
+
+      return response(
+        {
+          data: {
+            ...result,
+            fechaRegistro: result.fechaRegistro.toISOString(), // âœ… Serializar
+          },
+          message: "Aliado reactivado correctamente",
+        },
+        200
+      );
+    }
+
+    if (existing) {
+      return response({ error: "Documento ya registrado" }, 409);
+    }
+
+    result = await prisma.aliado.create({ data: body });
+
+    await logHistorial({
+      tipo: "CREAR",
+      accion: `Aliado ${result.nombre} creado`,
+      entidad: "Aliado",
+      entidadId: result.id,
+      usuarioId: user.id,
+      detalle: result,
+      ip: req.headers.get("x-forwarded-for") || undefined,
+    });
+
+    return response(
+      {
+        data: {
+          ...result,
+          fechaRegistro: result.fechaRegistro.toISOString(), // âœ… Serializar
+        },
+        message: "Aliado creado correctamente",
+      },
+      201
+    );
+  } catch (e: any) {
+    if (e.code === "VALIDATION") return response({ error: e.error }, 400);
+    return response({ error: e.message || "Error al crear aliado" }, 500);
+  }
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\api\aliados\[id]\route.ts =====
+import { prisma } from "@/lib/prisma";
+import { response } from "@/lib/response";
+import { getAuthUser } from "@/lib/getAuthUser";
+import { logHistorial } from "@/lib/logHistorial";
+import { validateBody } from "@/lib/validateBody";
+import { aliadoUpdateSchema } from "@/schemas/aliadoUpdate";
+import DOMPurify from 'isomorphic-dompurify';
+
+// GET /api/aliados/:id
+export async function GET(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const aliado = await prisma.aliado.findUnique({
+      where: { id: Number(params.id) },
+      include: { productos: true },
+    });
+    if (!aliado) return response({ error: "Aliado no encontrado" }, 404);
+    if (aliado.deletedAt) return response({ error: "Aliado archivado" }, 404);
+    return response({ data: aliado, message: "Aliado obtenido correctamente" });
+  } catch (e: any) {
+    return response({ error: e.message || "Error al obtener aliado" }, 500);
+  }
+}
+
+// PUT /api/aliados/:id â†’ actualizar o intercambiar
+export async function PUT(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const user =  await getAuthUser(req);
+    if (!user || !["ADMIN", "TRABAJADOR"].includes(user.rol)) {
+      return response({ error: "No autorizado" }, 403);
+    }
+
+    const body = await validateBody(req, aliadoUpdateSchema);
+    if (body.documento) {
+      body.documento = DOMPurify.sanitize(body.documento.trim());
+    }
+    if (body.telefono) body.telefono = body.telefono.trim();
+    if (body.correo) body.correo = body.correo.trim();
+
+    if (body.documento) {
+      const existing = await prisma.aliado.findUnique({
+        where: { documento: body.documento },
+      });
+
+      if (existing && existing.id !== Number(params.id)) {
+        if (existing.deletedAt) {
+          // âœ… Reactivar aliado archivado con nuevos datos
+          const reactivated = await prisma.aliado.update({
+            where: { id: existing.id },
+            data: { ...body, deletedAt: null, estado: "ACTIVO" },
+          });
+
+          // âœ… Archivar el aliado actual
+          const old = await prisma.aliado.update({
+            where: { id: Number(params.id) },
+            data: { deletedAt: new Date() },
+          });
+
+          await logHistorial({
+            tipo: "ACTUALIZAR",
+            accion: `Aliado ${reactivated.nombre} reactivado con documento ${reactivated.documento}`,
+            entidad: "Aliado",
+            entidadId: reactivated.id,
+            usuarioId: user.id,
+            detalle: reactivated,
+            ip: req.headers.get("x-forwarded-for") || undefined,
+          });
+
+          await logHistorial({
+            tipo: "ELIMINAR",
+            accion: `Aliado ${old.nombre} archivado con documento ${old.documento}`,
+            entidad: "Aliado",
+            entidadId: old.id,
+            usuarioId: user.id,
+            detalle: old,
+            ip: req.headers.get("x-forwarded-for") || undefined,
+          });
+
+          return response({
+            data: reactivated,
+            message: `Aliado intercambiado: se reactivÃ³ el documento ${reactivated.documento} y se archivÃ³ el documento ${old.documento}`,
+          });
+        }
+
+        return response({ error: "Documento ya registrado" }, 409);
+      }
+    }
+
+    // âœ… Actualizar normalmente
+    const updated = await prisma.aliado.update({
+      where: { id: Number(params.id) },
+      data: body,
+    });
+
+    await logHistorial({
+      tipo: "ACTUALIZAR",
+      accion: `Aliado ${updated.nombre} actualizado`,
+      entidad: "Aliado",
+      entidadId: updated.id,
+      usuarioId: user.id,
+      detalle: updated,
+      ip: req.headers.get("x-forwarded-for") || undefined,
+    });
+
+    return response({ data: updated, message: "Aliado actualizado correctamente" });
+  } catch (e: any) {
+    if (e.code === "P2025") return response({ error: "Aliado no encontrado" }, 404);
+    if (e.code === "VALIDATION") return response({ error: e.error }, 400);
+    return response({ error: e.message || "Error al actualizar aliado" }, 500);
+  }
+}
+
+// DELETE /api/aliados/:id
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const user = await getAuthUser(req);
+    if (!user || !["ADMIN", "TRABAJADOR"].includes(user.rol)) {
+      return response({ error: "No autorizado" }, 403);
+    }
+
+    const archived = await prisma.aliado.update({
+      where: { id: Number(params.id) },
+      data: { deletedAt: new Date() },
+    });
+
+    await logHistorial({
+      tipo: "ELIMINAR",
+      accion: `Aliado ${archived.nombre} archivado`,
+      entidad: "Aliado",
+      entidadId: archived.id,
+      usuarioId: user.id,
+      detalle: archived,
+      ip: req.headers.get("x-forwarded-for") || undefined,
+    });
+
+    return response({ data: { id: archived.id }, message: "Aliado archivado correctamente" });
+  } catch (e: any) {
+    if (e.code === "P2025") return response({ error: "Aliado no encontrado" }, 404);
+    return response({ error: e.message || "Error al archivar aliado" }, 500);
+  }
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\api\aliados\[id]\productos\route.ts =====
+import { prisma } from "@/lib/prisma";
+import { response } from "@/lib/response";
+import { getAuthUser } from "@/lib/getAuthUser";
+
+// GET /api/aliados/:id/productos?page=1&limit=20
+export async function GET(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const user = await getAuthUser(req);
+    if (!user || !["ADMIN", "TRABAJADOR"].includes(user.rol)) {
+      return response({ error: "No autorizado" }, 403);
+    }
+
+    const aliadoId = Number(params.id);
+    const aliado = await prisma.aliado.findUnique({ where: { id: aliadoId } });
+    if (!aliado) {
+      return response({ error: "Aliado no encontrado" }, 404);
+    }
+
+    const { searchParams } = new URL(req.url);
+    const page = Number(searchParams.get("page") ?? 1);
+    const limit = Number(searchParams.get("limit") ?? 20);
+
+    const [items, total] = await Promise.all([
+      prisma.producto.findMany({
+        where: { aliadoId, deletedAt: null },
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { creadoEn: "desc" },
+      }),
+      prisma.producto.count({ where: { aliadoId, deletedAt: null } }),
+    ]);
+
+    return response({
+      data: { page, limit, total, items },
+      message: "Productos listados correctamente",
+    });
+  } catch (e: any) {
+    console.error("Error en /api/aliados/:id/productos:", e);
+    return response({ error: e.message || "Error al listar productos" }, 500);
+  }
+}
+
+

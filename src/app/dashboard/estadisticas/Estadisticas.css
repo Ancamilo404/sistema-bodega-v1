@@ -1,0 +1,150 @@
+/* ====== Dashboard general ====== */
+.dashboard {
+  padding: 24px;
+  background-color: var(--color-1);
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.kpi-card {
+  background: var(--color-surface);
+  border-radius: var(--radius.-1);
+  box-shadow: var(--shadow-1);
+  padding: 16px;
+  text-align: center;
+  transition: var(--transition-1);
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+}
+
+.kpi-title {
+  font-size: 14px;
+  color: var(--color-6);
+}
+
+.kpi-value {
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--color-blue-1);
+}
+
+/* ====== Tabla de últimas ventas ====== */
+.ventas-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  font-size: 14px;
+}
+
+.ventas-table th {
+  background: #f4f4f4;
+  text-align: left;
+  padding: 10px;
+  border-bottom: 2px solid #ddd;
+}
+
+.ventas-table td {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.ventas-table tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.ventas-table tr:hover {
+  background: #f0f8ff;
+}
+
+/* ====== Badges de estado ====== */
+.badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+}
+
+.badge.confirmada {
+  background: #16a34a; /* verde */
+}
+
+.badge.anulada {
+  background: #dc2626; /* rojo */
+}
+
+.badge.en_proceso {
+  background: #f59e0b; /* amarillo */
+}
+
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.chart-box {
+  background: var(--color-surface);
+  border-radius: var(--radius.-1);
+  box-shadow: var(--shadow-1);
+  padding: 16px;
+}
+
+.section-title {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.chart-description {
+  font-size: 13px;
+  color: var(--color-6);
+  margin-bottom: 12px;
+}
+.footer {
+  padding: 16px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-6);
+}
+.footer a {
+  color: var(--color-blue-1);
+  text-decoration: none;
+}
+.footer a:hover {
+  text-decoration: underline;
+}
+
+/* 📱 Responsividad para móviles */
+@media (max-width: 1024px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr); /* 2 columnas en tablets */
+  }
+  .charts-grid {
+    grid-template-columns: 1fr; /* gráficas en una sola columna */
+  }
+}
+
+@media (max-width: 768px) {
+  .kpi-grid {
+    grid-template-columns: 1fr; /* KPIs en una sola columna */
+  }
+  .charts-grid {
+    grid-template-columns: 1fr; /* gráficas en una sola columna */
+  }
+  .ventas-table {
+    font-size: 12px; /* texto más pequeño */
+  }
+  .ventas-table th,
+  .ventas-table td {
+    padding: 6px;
+  }
+}

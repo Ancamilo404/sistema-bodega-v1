@@ -1,0 +1,257 @@
+/* ========================================
+   GLOBAL RESPONSIVE - Variables y Base
+   Archivo: src/app/style/global-responsive.css
+   ======================================== */
+
+/* 📱 Breakpoints Estándar */
+:root {
+  /* Breakpoints */
+  --bp-mobile: 480px;
+  --bp-tablet: 768px;
+  --bp-desktop: 968px;
+  --bp-large: 1200px;
+
+  /* Espaciados responsivos */
+  --spacing-mobile: 8px;
+  --spacing-tablet: 12px;
+  --spacing-desktop: 16px;
+
+  /* Tipografía responsiva */
+  --font-small: clamp(12px, 2vw, 14px);
+  --font-base: clamp(14px, 2.5vw, 16px);
+  --font-large: clamp(16px, 3vw, 20px);
+  --font-title: clamp(20px, 4vw, 28px);
+}
+
+/* ========================================
+   RESET MÓVIL
+   ======================================== */
+
+/* Prevenir zoom en inputs en iOS */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="date"],
+  input[type="time"],
+  select,
+  textarea {
+    font-size: 16px !important; /* Evita zoom automático en iOS */
+  }
+}
+
+/* Mejorar tap targets en móvil */
+@media (max-width: 768px) {
+  button,
+  a,
+  input,
+  select {
+    min-height: 44px; /* Tamaño mínimo recomendado por Apple */
+    min-width: 44px;
+  }
+}
+
+/* ========================================
+   UTILIDADES RESPONSIVE
+   ======================================== */
+
+/* Ocultar en móvil */
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* Ocultar en tablet */
+@media (min-width: 769px) and (max-width: 968px) {
+  .hide-tablet {
+    display: none !important;
+  }
+}
+
+/* Ocultar en desktop */
+@media (min-width: 969px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+/* Mostrar solo en móvil */
+.show-mobile {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .show-mobile {
+    display: block !important;
+  }
+}
+
+/* ========================================
+   LAYOUT BASE RESPONSIVE
+   ======================================== */
+
+/* Body y contenedor principal */
+@media (max-width: 768px) {
+  body {
+    padding: 8px;
+    font-size: var(--font-base);
+  }
+
+  .main-wrapper {
+    min-height: calc(100vh - 16px);
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 4px;
+  }
+}
+
+/* ========================================
+   SCROLLBAR RESPONSIVE
+   ======================================== */
+
+/* Ocultar scrollbar en móvil para más espacio */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-9);
+  }
+}
+
+/* ========================================
+   ANIMACIONES OPTIMIZADAS PARA MÓVIL
+   ======================================== */
+
+@media (max-width: 768px) {
+  * {
+    /* Reducir animaciones en móvil para mejor performance */
+    transition-duration: 0.2s !important;
+  }
+
+  /* Desactivar animaciones complejas en móviles de gama baja */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+}
+
+/* ========================================
+   MODALES RESPONSIVE
+   ======================================== */
+
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    max-width: 95%;
+    max-height: 85vh;
+    padding: 1rem;
+  }
+
+  .modal-header h2 {
+    font-size: 1rem;
+  }
+
+  .modal-form input,
+  .modal-form select {
+    padding: 0.5rem;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-content {
+    width: 98%;
+    padding: 0.75rem;
+  }
+}
+
+/* ========================================
+   BOTONES RESPONSIVE
+   ======================================== */
+
+@media (max-width: 768px) {
+  .boton {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  .boton-letra {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .boton {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+/* ========================================
+   INPUTS RESPONSIVE
+   ======================================== */
+
+@media (max-width: 768px) {
+  .input-search {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+}
+
+/* ========================================
+   IMÁGENES RESPONSIVE
+   ======================================== */
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 768px) {
+  .sidebar-image img {
+    max-height: 150px;
+  }
+}
+
+/* ========================================
+   TABLAS RESPONSIVE BASE
+   ======================================== */
+
+@media (max-width: 968px) {
+  .data-table {
+    min-width: 100%;
+    font-size: 12px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 8px;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 768px) {
+  .table-wrapper {
+    max-height: 50vh;
+  }
+
+  .data-table {
+    font-size: 11px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 6px;
+  }
+}

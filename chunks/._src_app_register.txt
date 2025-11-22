@@ -1,0 +1,666 @@
+﻿===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\register\page.tsx =====
+/* eslint-disable @next/next/no-img-element */
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import "./register.css";
+import "./register2.css";
+
+export default function RegisterPage() {
+  const [usuario, setUsuario] = useState("");
+  const [correo, setCorreo] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fade, setFade] = useState(false); // ðŸ‘ˆ estado para animaciÃ³n
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (password !== confirmPassword) {
+      setError("Las contraseÃ±as no coinciden");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: usuario,
+          correo: correo.toLowerCase(),
+          password,
+        }),
+        credentials: "include",
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || "Error en registro");
+        return;
+      }
+
+      window.location.href = "/dashboard";
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  // ðŸ‘‡ funciÃ³n para animar y luego navegar
+  const handleLoginClick = () => {
+    setFade(true);
+    setTimeout(() => {
+      router.push("/login");
+    }, 100); // mismo tiempo que la transiciÃ³n
+  };
+
+  return (
+    <div className="larger-container">
+      <div className="letf-conteiner">
+        <div className="tabs">
+          <button 
+            className="tab desactivado" 
+            onClick={handleLoginClick} 
+            aria-selected="false"
+          >
+            Iniciar SesiÃ³n
+          </button>
+          <button className="tab active" aria-selected="true">
+            Registro
+          </button>
+          <div className="tab-indicator register"></div>
+        </div>
+      </div>
+
+      {/* Lado derecho con formulario */}
+      <div className="right-conteiner">
+        <div className={`register-card ${fade ? "fade-out" : ""}`}>
+          <div className="logo-container">
+            <img src="/logo.png" alt="Logo Grupo Monterrey" />
+          </div>
+          <h3>Registrate</h3>
+          <form onSubmit={handleSubmit}>
+            {/* Usuario */}
+            <div className="input-line">
+              <User className="icon" size={20} />
+              <input
+                type="text"
+                placeholder="Crear Usuario"
+                value={usuario}
+                onChange={(e) => setUsuario(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* ContraseÃ±a */}
+            <div className="input-line">
+              <Lock className="icon" size={20} />
+              <div className="input-wrapper">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Crear ContraseÃ±a"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="icon-btn"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Confirmar contraseÃ±a */}
+            <div className="input-line">
+              <Lock className="icon" size={20} />
+              <div className="input-wrapper">
+                <input
+                  type={showConfirm ? "text" : "password"}
+                  placeholder="Confirmar ContraseÃ±a"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="icon-btn"
+                >
+                  {showConfirm ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Correo */}
+            <div className="input-line">
+              <Mail className="icon" size={20} />
+              <input
+                type="email"
+                placeholder="Correo"
+                value={correo}
+                onChange={(e) => setCorreo(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* Error de contraseÃ±as */}
+            {password && confirmPassword && password !== confirmPassword && (
+              <div className="error-text">Las contraseÃ±as no coinciden</div>
+            )}
+            {error && <div className="error-text">{error}</div>}
+
+            {/* TÃ©rminos */}
+            <div className="terms">
+              <input type="checkbox" id="terms" required />
+              <label htmlFor="terms">
+                Acepto los{" "}
+                <a href="/terminos.pdf" target="_blank">
+                  TÃ©rminos y condiciones
+                </a>
+              </label>
+            </div>
+
+            {/* BotÃ³n */}
+            <div className="botonn">
+              <button type="submit" className="btn-primary">
+                Siguiente
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\register\register.css =====
+body{
+  background-color:  var(--color-1);
+}
+.larger-container {
+  display: grid;
+  grid-template-columns: 35% 65%;
+  min-height: 100vh;   /* antes: height */
+  height: auto;
+  font-family: 'Kantumruy Pro', sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+/* animmaciones */
+.letf-conteiner {
+  animation: fadeUp 0.8s ease-out;
+}
+
+.right-conteiner {
+  animation: fadeDown 0.8s ease-out;
+}
+
+@keyframes fadeUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fadeDown {
+  from { transform: translateY(-40px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+
+
+.logo-container img {
+  animation: zoomIn 0.6s ease-in-out;
+}
+
+@keyframes zoomIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+
+.input-line {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeUp 0.6s ease forwards;
+}
+
+.input-line:nth-child(1) { animation-delay: 0.2s; }
+.input-line:nth-child(2) { animation-delay: 0.4s; }
+.input-line:nth-child(3) { animation-delay: 0.6s; }
+.input-line:nth-child(4) { animation-delay: 0.8s; }
+
+@keyframes fadeUp {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+/* =======================
+   Panel izquierdo
+======================= */
+.letf-conteiner {
+  position: relative;
+  display: flex;
+  justify-content: end;
+  align-items: center;
+  padding: 30px;
+  background: linear-gradient(32deg, rgba(222, 222, 222, 1) 31%, rgba(146, 143, 143, 0.55) 70%);
+  overflow: hidden;
+}
+
+.letf-conteiner::before,
+.letf-conteiner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+  background-size: 240px;
+  pointer-events: none;
+  z-index: 0;
+  animation: moveBackground 50s linear infinite;
+}
+
+.letf-conteiner::before {
+  background-image: url("/logoGiradoBlanco.png");
+  opacity: 1;
+  animation: moveBackground 70s linear infinite, fadeOut 10s ease-in-out infinite alternate;
+}
+
+.letf-conteiner::after {
+  background-image: url("/logoGirado.png");
+  opacity: 0;
+  animation: moveBackground 70s linear infinite, fadeIn 10s ease-in-out infinite alternate;
+}
+
+@keyframes moveBackground {
+  from { background-position: 0 0; }
+  to   { background-position: -500px 1000px; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 0.1; }
+  to   { opacity: 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 0.1; }
+}
+
+/* tabs regsitre and login (pestaÃ±as de login y registro) */
+
+.tabs {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  z-index: 10;
+  margin-left: -30px;
+  transition: all 0.3s ;
+
+}
+
+.tab {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--color-10);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 1.8rem 1.2rem;
+  position: relative;
+  z-index: 12;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.tab.active,
+.tab.desactivado:hover {
+  text-align: center;
+  font-weight: 700;
+  background: var(--color-1);
+  color: var(--color-10);
+  box-shadow: var(--shadow-2);
+  border-radius: var(--radius-2);
+  transform: translateY(-2px);
+}
+
+.tab.desactivado{
+  text-align: center;
+}
+
+.tab.active:hover {
+  background: var(--color-2);
+}
+
+.tab.active:active,
+.tab.desactivado:active {
+  transform: translateY(0);
+}
+
+.tabs:has(.tab.desactivado:hover) .tab.active {
+  background: none;
+  box-shadow: none;
+}
+
+/* Indicador rectangular redondeado */
+
+.tab-indicator {
+  position: absolute;
+  left: 46%;
+  width: 100%;
+  height: 70px;
+  border-radius: 42px;
+  z-index: 11;
+  pointer-events: none;
+}
+
+.tab-indicator.register {
+  top: calc(56% + 8px);
+}
+
+/* =======================
+   Panel derecho
+======================= */
+.right-conteiner {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start; /* no center fijo */
+  background: var(--color-1);
+  padding: 1rem 0;
+  overflow-y: scroll;          /* mantiene el scroll */
+  scrollbar-width: none;       /* Firefox: oculta y no ocupa espacio */
+  -ms-overflow-style: none;
+  box-shadow:  -9px 0 46.9px rgba(0, 0, 0, 0.228);
+
+}
+
+body::-webkit-scrollbar {
+  width: 0px;                  /* Chrome, Safari, Edge: quita el espacio */
+  height: 0px;
+}
+
+.register-card {
+    opacity: 1;
+    transition: opacity 0.7s ease;
+  }
+
+  .register-card.fade-out {
+    opacity: 0.5;
+    cursor: wait;
+  }
+
+  .register-card {
+  width: 55%;
+  max-width: 600px; 
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 1.5rem;
+}
+
+.login{
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-container {
+  width: 180px;
+  }
+
+.logo-container img {
+  max-width: 100%;
+  height: auto;
+}
+
+h3{
+  margin: 1.4rem;
+  color: var(--color-9);
+  font-weight: 600;
+}
+
+.titulo-login{
+  margin: 2.4rem;
+}
+
+/* Inputs */
+form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.input-line {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #B2B2B2;
+  padding: 0.7rem 0.5rem;
+  margin-bottom: 1rem;
+  transition: border-color 0.3s;
+}
+
+.input-line:focus-within {
+  border-bottom-color: #6b7280;
+}
+
+.input-line .icon {
+  margin-right: 0.7rem;
+  color: #B2B2B2;
+  flex-shrink: 0;
+}
+
+.input-line input {
+  border: none;
+  outline: none;
+  flex: 1;
+  background: transparent;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+.input-line input::placeholder {
+  color: #9ca3af;
+}
+
+/* Checkbox + TÃ©rminos */
+.terms {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  margin: 1rem 0 1.2rem 0;
+  width: 100%;
+}
+
+.terms input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #646464;
+}
+
+.terms label {
+  color: #4b5563;
+  cursor: pointer;
+}
+
+.terms a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+/* BotÃ³n */
+.btn-primary {
+  width: 100%;
+  max-width: 150px;
+  padding: 0.75rem 1.2rem;
+  border-radius: var(--radius-1);
+  background: var(--color-8);
+  color: var(--color-1);
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(100, 100, 100, 0.2);
+  box-shadow: var(--shadow-1);
+}
+
+.botonn {
+  display: flex;
+  justify-content: center;
+}
+
+.terms-login{
+  padding: 2.75rem 0 1.2rem 0;
+
+}
+
+.btn-primary:hover {
+  background: var(--color-9);
+  box-shadow:var(--shadow-2);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Errores */
+.error-text {
+  color: var(--color-error);
+  font-size: 0.8rem;
+  margin-top: 0.4rem;
+  text-align: center;
+  width: 100%;
+}
+
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  justify-content: space-between;
+}
+
+.input-wrapper input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.95rem;
+  color: var(--color-10);
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-5);
+  padding: 0 0.3rem;
+  display: flex;
+  align-items: center;
+}
+/* Quitar el ojito predeterminado de los inputs password en Chrome, Edge, Safari */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-clear-button,
+input[type="password"]::-webkit-inner-spin-button,
+input[type="password"]::-webkit-password-toggle-button {
+  display: none !important;
+  appearance: none !important;
+}
+
+/* Para Firefox */
+input[type="password"] {
+  -moz-appearance: textfield;
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\register\register2.css =====
+/* =======================
+   Responsive
+======================= */
+@media (max-width: 968px) {
+  .larger-container {
+    grid-template-columns: 30% 70%;
+  }
+  
+  .tab {
+    font-size: 1.4rem;
+    padding: 1.5rem 1rem;
+  }
+  
+  .tab-indicator {
+    width: 190px;
+    height: 60px;
+    left: 42%;
+  }
+}
+
+/* MÃ³viles verticales */
+@media (max-width: 768px) {
+  .larger-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .letf-conteiner {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: none;
+    box-shadow: none;
+  }
+
+  .tabs {
+    flex-direction: row;
+    justify-content: center;
+    margin: 1rem 0;
+  }
+
+  .tab-indicator {
+    display: none; /* opcional en mÃ³vil */
+  }
+
+  .register-card {
+    width: 95%;
+    max-width: 400px;
+    padding: 1.5rem;
+  }
+  
+  .logo-container {
+    width: 160px;
+  }
+}
+
+/* MÃ³viles horizontales */
+@media (max-width: 900px) and (orientation: landscape) {
+  .larger-container {
+    grid-template-columns: 1fr;
+  }
+  .letf-conteiner {
+    display: none;
+  }
+  .right-conteiner {
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+}
+
+
+

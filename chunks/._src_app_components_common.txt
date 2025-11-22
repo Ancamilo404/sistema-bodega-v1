@@ -1,0 +1,257 @@
+﻿===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\components\common\InfoTooltip.tsx =====
+"use client";
+import React from "react";
+
+export default function InfoTooltip() {
+  return (
+    <div className="info-tooltip">
+      <strong>InformaciÃ³n de la PÃ¡gina</strong>
+      <ul>
+        <li><strong>Creadores:</strong></li>
+        <li>Andres Camilo Ramirez Orrego</li>
+        <li>Simon Frenco Gisado</li>
+      </ul>
+
+        <strong>UbicaciÃ³n:</strong> MedellÃ­n, Colombia
+      <ul>
+
+        <li><strong>Redes:</strong></li>
+        <li>Correo: <em>Ancamilo404@gmail.com / simonfrancoguisado@gmail.com</em></li>
+        <li>LinkedIn: <em>simon franco guisado / https://www.linkedin.com/in/simonfrancoguisado/?utm_source=share_via&utm_content=profile&utm_medium=member_android</em></li>
+        <li>GitHub: <em>Ancamilo404 / https://github.com/Ancamilo404</em></li>
+      </ul>
+
+        <strong>FilosofÃ­a:</strong>
+        <br /> Nos esforzamos por hacer las cosas bien y mÃ¡s de lo que nos piden.
+        <br /> No hacemos cosas ordinarias.
+        <br /> Usamos conocimientos, IA y sudor.
+    </div>
+  );
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\components\common\ScrollableTable.tsx =====
+"use client";
+import React, { useRef, forwardRef } from "react";
+import Table from "./Table";
+import { FaAngleLeft, FaAngleRight } from "react-icons/fa";
+
+interface Column {
+  key: string;
+  label: string;
+  width?: string;
+}
+
+interface ScrollableTableProps {
+  columns: Column[];
+  data: any[];
+  onRowClick?: (row: any) => void;
+  selectedId?: number | null;
+}
+
+const ScrollableTable = forwardRef<HTMLDivElement, ScrollableTableProps>(
+  ({ columns, data, onRowClick, selectedId }, ref) => {
+    const tableWrapperRef = useRef<HTMLDivElement>(null);
+    const animationRef = useRef<number | null>(null);
+
+    const startScroll = (amount: number) => {
+      const step = () => {
+        // âœ… ARREGLADO: Verificar que target existe
+        const target = (ref as React.RefObject<HTMLDivElement>)?.current || tableWrapperRef.current;
+        if (target) {  // â¬…ï¸ ANTES: if (tableWrapperRef) âŒ
+          target.scrollLeft += amount;
+          animationRef.current = requestAnimationFrame(step);
+        }
+      };
+      animationRef.current = requestAnimationFrame(step);
+    };
+
+    const stopScroll = () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+    };
+
+    return (
+      <div className="contenedor-btn-scrool">
+        <button
+          className="scroll-button-left"
+          onMouseDown={() => startScroll(-5)}
+          onMouseUp={stopScroll}
+          onMouseLeave={stopScroll}
+        >
+          <FaAngleLeft />
+        </button>
+
+        <button
+          className="scroll-button-right"
+          onMouseDown={() => startScroll(5)}
+          onMouseUp={stopScroll}
+          onMouseLeave={stopScroll}
+        >
+          <FaAngleRight />
+        </button>
+
+        <Table
+          columns={columns}
+          data={data}
+          onRowClick={onRowClick}
+          wrapperRef={ref || tableWrapperRef}
+          selectedId={selectedId}
+        />
+      </div>
+    );
+  }
+);
+
+ScrollableTable.displayName = "ScrollableTable";
+
+export default ScrollableTable;
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\components\common\SearchBar.tsx =====
+"use client";
+
+import React, { useState } from "react";
+import toast from "react-hot-toast";
+
+interface SearchBarProps {
+  module: "clientes" | "productos" | "aliados" | "usuarios" | "ventas" | "historial";
+  placeholder?: string;
+  buttonText?: string;
+  onResults: (data: any[]) => void;
+  onClear?: () => void; // âœ… callback para reactivar polling
+}
+
+export default function SearchBar({
+  module,
+  placeholder = "Buscar",
+  buttonText = "Buscar",
+  onResults,
+  onClear,
+}: SearchBarProps) {
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const endpoints: Record<SearchBarProps["module"], string> = {
+    clientes: "/api/clientes",
+    productos: "/api/productos",
+    aliados: "/api/aliados",
+    usuarios: "/api/usuarios",
+    ventas: "/api/ventas",
+    historial: "/api/historial",
+  };
+
+  const handleSearch = async () => {
+    // â›” Si estÃ¡ vacÃ­o o solo espacios, no hacer nada
+    if (!query.trim()) {
+      return; // el polling sigue activo, no se limpia nada
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${endpoints[module]}?search=${encodeURIComponent(query.trim())}`);
+      const json = await res.json();
+
+      if (!res.ok) {
+        toast.error(json.error || "Error en bÃºsqueda");
+        return; // â›” corta aquÃ­ si el backend devuelve error
+      }
+
+      // âœ… Si todo va bien, actualiza resultados
+      onResults(json.data || []);
+    } catch (err) {
+      console.error("Error en bÃºsqueda:", err);
+      toast.error("Error de conexiÃ³n");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
+
+  return (
+    <div className="search-bar">
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => {
+          const value = e.target.value;
+          setQuery(value);
+
+          // ðŸ”¹ Si el input queda vacÃ­o, limpia resultados y reactiva polling
+          if (value.trim() === "") {
+            onResults([]);
+            if (onClear) onClear();
+          }
+        }}
+        onKeyPress={handleKeyPress}
+        placeholder={placeholder || `Buscar ${module}...`}
+        className="input-search"
+        disabled={loading}
+      />
+      <button onClick={handleSearch} className="btn-search" disabled={loading}>
+        {loading ? <span className="spinner-inline">â³ Buscando...</span> : buttonText}
+      </button>
+    </div>
+  );
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\components\common\Table.tsx =====
+// app/components/tabl/Table.tsx
+import React from 'react';
+
+interface Column {
+  key: string;
+  label: string;
+  width?: string;
+}
+
+interface TableProps {
+  columns: Column[];
+  data: any[];
+  onRowClick?: (row: any) => void;
+  wrapperRef?: React.Ref<HTMLDivElement>;
+  selectedId?: number | null;   // âœ… nombre unificado
+}
+
+export default function Table({ columns, data, onRowClick, wrapperRef, selectedId }: TableProps) {
+  return (
+    <div className="table-wrapper" ref={wrapperRef}>
+      <table className="data-table">
+        <thead>
+          <tr>
+            {columns.map((col) => (
+              <th key={col.key} style={{ minWidth: col.width || 'auto' }}>
+                {col.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row) => (
+            <tr
+              key={row.id}
+              onClick={() => onRowClick && onRowClick(row)}
+              className={`${selectedId === row.id ? "selected-row" : ""} ${row.pending ? "pending-row" : ""}`}
+              style={{ cursor: onRowClick ? 'pointer' : 'default' }}
+              aria-selected={selectedId === row.id}   // âœ… accesibilidad
+            >
+              {columns.map((col) => (
+                <td key={col.key}>{row[col.key]}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+

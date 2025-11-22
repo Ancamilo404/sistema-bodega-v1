@@ -1,0 +1,153 @@
+﻿===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\components\layout\Header.tsx =====
+// src/components/layout/Header.tsx
+import React from 'react';
+
+interface HeaderProps {
+  title: string;
+  icon: React.ReactNode;
+}
+
+export default function Header({ title, icon }: HeaderProps) {
+  return (
+    <div className="header">
+      <div className="header-top">
+        <h1 className="title">{title}</h1>
+        <div className="header-icon">{icon}</div>
+      </div>
+    </div>
+  );
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\components\layout\MainLayout.tsx =====
+// src/components/layout/MainLayout.tsx
+import React from 'react';
+
+interface MainLayoutProps {
+  children: React.ReactNode;
+  sidebar?: React.ReactNode;
+  header?: React.ReactNode;
+  footer?: React.ReactNode;   // âœ… nuevo
+  topbar?: React.ReactNode;   // âœ… opcional extra
+  showSidebar?: boolean;
+  contentClassName?: string;
+}
+
+export default function MainLayout({
+  children,
+  sidebar,
+  header,
+  footer,
+  topbar,
+  showSidebar = false,
+  contentClassName = ""
+}: MainLayoutProps) {
+  return (
+    <div className="main-layout-container">
+      <div className="main-layout-wrapper">
+        {/* Sidebar izquierda (opcional) */}
+        {showSidebar && sidebar && (
+          <div className="main-layout-sidebar">
+            {sidebar}
+          </div>
+        )}
+
+        {/* Contenido derecho */}
+        <div className={`main-layout-content ${contentClassName}`}>
+          {/* Topbar opcional */}
+          {topbar && (
+            <div className="main-layout-topbar">
+              {topbar}
+            </div>
+          )}
+
+          {/* Header */}
+          {header && (
+            <div className="main-layout-header">
+              {header}
+            </div>
+          )}
+
+          {/* Cuerpo principal */}
+          <div className="main-layout-body">
+            {children}
+          </div>
+
+          {/* Footer opcional */}
+          {footer && (
+            <div className="main-layout-footer">
+              {footer}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\components\layout\Sidebar.tsx =====
+// src/components/layout/Sidebar.tsx
+import React from 'react';
+
+interface SidebarButton {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+interface SidebarProps {
+  buttons: SidebarButton[];
+  showInfo?: boolean;
+  infoContent?: React.ReactNode;
+  onImageUpload?: () => void;
+  footerContent?: React.ReactNode;
+  selected?: boolean;   // âœ… antes era isActive
+}
+
+export default function Sidebar({ 
+  buttons, 
+  showInfo = false, 
+  infoContent, 
+  onImageUpload,
+  footerContent,
+  selected = false   // âœ… valor por defecto
+}: SidebarProps) {
+  return (
+    <aside className={`sidebar-container ${selected ? 'active1' : ''}`}>
+      {/* Botones */}
+      <div className="sidebar-buttons">
+        {buttons.map((btn, index) => (
+        <button
+          key={index}
+          onClick={btn.onClick}
+          disabled={btn.disabled}
+          aria-disabled={btn.disabled}
+            className={`boton sidebar-button ${btn.disabled ? 'disabled' : ''} ${btn.label === 'Volver' ? 'btn-volver' : ''}`}
+          >
+          {btn.label}
+        </button>
+        ))}
+      </div>
+
+      {/* Divisor si hay contenido extra */}
+      {(showInfo)}
+
+
+      {/* InformaciÃ³n adicional */}
+      {showInfo && infoContent && (
+        <div className="sidebar-info">
+          {infoContent}
+        </div>
+      )}
+      {/* Footer de la barra lateral */}
+      {footerContent && (
+        <div className="sidebar-footer LogoFinal">
+          {footerContent}
+        </div>
+      )}
+    </aside>
+  );
+}
+
+

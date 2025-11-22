@@ -1,0 +1,190 @@
+﻿===== .\src\app\api\ventas\[ventaId]\route.ts =====
+import { prisma } from "@/lib/prisma";
+import { response } from "@/lib/response";
+import { getAuthUser } from "@/lib/getAuthUser";
+import { logHistorial } from "@/lib/logHistorial";
+import { validateBody } from "@/lib/validateBody";
+import { ventaUpdateSchema } from "@/schemas/ventaUpdate";
+import { validateVentaEntities } from "@/lib/validateVentaEntities";
+
+// GET /api/ventas/:id â†’ obtener venta
+export async function GET(req: Request, { params }: { params: { ventaId: string } }) {
+  try {
+    const venta = await prisma.venta.findUnique({
+      where: { id: Number(params.ventaId) },
+      include: { cliente: true, usuario: true, items: { include: { producto: true } } },
+    });
+    if (!venta) return response({ error: "Venta no encontrada" }, 404);
+    return response({ data: venta, message: "Venta obtenida correctamente" });
+  } catch (e: any) {
+    return response({ error: e.message || "Error al obtener venta" }, 500);
+  }
+}
+
+// PUT /api/ventas/:id â†’ actualizar campos parciales
+export async function PUT(req: Request, { params }: { params: { ventaId: string } }) {
+  try {
+    const user = await getAuthUser(req);
+    if (!user || !["ADMIN", "TRABAJADOR"].includes(user.rol)) {
+      return response({ error: "No autorizado" }, 403);
+    }
+
+    const body = await validateBody(req, ventaUpdateSchema);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const venta = await tx.venta.findUnique({
+        where: { id: Number(params.ventaId) },
+        include: { items: true },
+      });
+      if (!venta) throw new Error("Venta no encontrada");
+
+      // Manejo de stock segÃºn transiciÃ³n de estado
+      if (body.estado === "CONFIRMADA" && venta.estado !== "CONFIRMADA") {
+        for (const item of venta.items) {
+          await tx.producto.update({
+            where: { id: item.productoId },
+            data: { stock: { decrement: item.cantidad } },
+          });
+        }
+      }
+      if (body.estado === "ANULADA" && venta.estado === "CONFIRMADA") {
+        for (const item of venta.items) {
+          await tx.producto.update({
+            where: { id: item.productoId },
+            data: { stock: { increment: item.cantidad } },
+          });
+        }
+      }
+
+      const updated = await tx.venta.update({
+        where: { id: venta.id },
+        data: {
+          estado: body.estado ?? venta.estado,
+          metodoPago: body.metodoPago ?? venta.metodoPago,
+          observaciones: body.observaciones ?? venta.observaciones,
+          impuesto: body.impuesto ?? venta.impuesto,
+          descuento: body.descuento ?? venta.descuento,
+        },
+        include: { cliente: true, usuario: true, items: { include: { producto: true } } },
+      });
+
+      await logHistorial({
+        tipo: "ACTUALIZAR",
+        accion: `Venta ${updated.referencia} actualizada`,
+        entidad: "Venta",
+        entidadId: updated.id,
+        usuarioId: user.id,
+        detalle: updated,
+        ip: req.headers.get("x-forwarded-for") || undefined,
+      });
+
+      return updated;
+    });
+
+    return response({ data: result, message: "Venta actualizada correctamente" });
+  } catch (e: any) {
+    if (e.code === "VALIDATION") return response({ error: e.error }, 400);
+    return response({ error: e.message || "Error al actualizar venta" }, 500);
+  }
+}
+
+// PATCH /api/ventas/:id â†’ confirmar venta
+export async function PATCH(req: Request, { params }: { params: { ventaId: string } }) {
+  try {
+    const user = await getAuthUser(req);
+    if (!user || !["ADMIN", "TRABAJADOR"].includes(user.rol)) {
+      return response({ error: "No autorizado" }, 403);
+    }
+
+    const ventaId = Number(params.ventaId);
+    if (Number.isNaN(ventaId)) return response({ error: "ID invÃ¡lido" }, 400);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const venta = await tx.venta.findUnique({
+        where: { id: ventaId },
+        include: { cliente: true, items: true },
+      });
+      if (!venta) throw new Error("Venta no encontrada");
+      if (venta.estado === "CONFIRMADA") throw new Error("La venta ya estÃ¡ confirmada");
+      if (venta.estado === "ANULADA") throw new Error("No se puede confirmar una venta anulada");
+
+      await validateVentaEntities({
+        usuarioId: user.id,
+        clienteId: venta.clienteId,
+        items: venta.items.map(i => ({ productoId: i.productoId, cantidad: i.cantidad })),
+      });
+
+      let total = 0;
+      for (const item of venta.items) {
+        const producto = await tx.producto.findUnique({ where: { id: item.productoId } });
+        if (!producto) throw new Error(`Producto ${item.productoId} no encontrado`);
+
+        const precioUnitario = producto.precio;
+        const subtotal = Number(precioUnitario) * item.cantidad;
+        total += subtotal;
+
+        await tx.ventaProducto.update({
+          where: { id: item.id },
+          data: { precioUnitario, subtotal },
+        });
+
+        await tx.producto.update({
+          where: { id: item.productoId },
+          data: { stock: { decrement: item.cantidad } },
+        });
+      }
+
+      const confirmada = await tx.venta.update({
+        where: { id: ventaId },
+        data: { estado: "CONFIRMADA", total },
+        include: { cliente: true, usuario: true, items: { include: { producto: true } } },
+      });
+
+      await logHistorial({
+        tipo: "ACTUALIZAR",
+        accion: `Venta ${confirmada.referencia} confirmada`,
+        entidad: "Venta",
+        entidadId: confirmada.id,
+        usuarioId: user.id,
+        detalle: confirmada,
+        ip: req.headers.get("x-forwarded-for") || undefined,
+      });
+
+      return confirmada;
+    });
+
+    return response({ data: result, message: "Venta confirmada correctamente" });
+  } catch (e: any) {
+    return response({ error: e.message || "Error al confirmar venta" }, 500);
+  }
+}
+
+// DELETE /api/ventas/:id â†’ alias de anulaciÃ³n
+export async function DELETE(req: Request, { params }: { params: { ventaId: string } }) {
+  try {
+    const user = await getAuthUser(req);
+    if (!user || !["ADMIN", "TRABAJADOR"].includes(user.rol)) {
+      return response({ error: "No autorizado" }, 403);
+    }
+
+    const anulada = await prisma.venta.update({
+      where: { id: Number(params.ventaId) },
+      data: { estado: "ANULADA" },
+    });
+
+    await logHistorial({
+      tipo: "ACTUALIZAR",
+      accion: `Venta ${anulada.referencia} anulada (DELETE endpoint)`,
+      entidad: "Venta",
+      entidadId: anulada.id,
+      usuarioId: user.id,
+      detalle: anulada,
+      ip: req.headers.get("x-forwarded-for") || undefined,
+    });
+
+    return response({ data: { id: anulada.id }, message: "Venta anulada correctamente" });
+  } catch (e: any) {
+    if (e.code === "P2025") return response({ error: "Venta no encontrada" }, 404);
+    return response({ error: e.message || "Error al anular venta" }, 500);
+  }
+}

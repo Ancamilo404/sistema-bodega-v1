@@ -1,0 +1,251 @@
+﻿===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\schemas\aliado.ts =====
+import { z } from "zod";
+
+export const aliadoSchema = z.object({
+  nombre: z.string().min(1, "El nombre es obligatorio"),
+  tipoId: z.enum(["CC", "TI", "CE", "PASAPORTE", "NIT"], {
+    required_error: "El tipo de documento es obligatorio",
+  }),
+  documento: z.string()
+    .min(1, "El documento es obligatorio")
+    .regex(/^[0-9]+$/, "El documento debe contener solo nÃºmeros ni espacios"),
+  telefono: z.string()
+    .regex(/^[0-9]+$/, "El telÃ©fono debe contener solo nÃºmeros")
+    .optional(),
+  correo: z.string().email("Correo invÃ¡lido").optional(),
+  direccion: z.string().optional(),
+  imagen: z.string().optional(),
+  estado: z.enum(["ACTIVO", "BLOQUEADO"]),
+});
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\schemas\aliadoUpdate.ts =====
+import { z } from "zod";
+
+export const aliadoUpdateSchema = z.object({
+  nombre: z.string().min(1, "El nombre es obligatorio").optional(),
+  tipoId: z.enum(["CC", "TI", "CE", "PASAPORTE", "NIT"]).optional(),
+  documento: z.string()
+    .min(1, "El documento es obligatorio")
+    .regex(/^[0-9]+$/, "El documento debe contener solo nÃºmeros ni espacios")
+    .optional(),
+  telefono: z.string()
+    .regex(/^[0-9]+$/, "El telÃ©fono debe contener solo nÃºmeros")
+    .optional(),
+  correo: z.string().email("Correo invÃ¡lido").optional(),
+  direccion: z.string().optional(),
+  imagen: z.string().optional(),
+  estado: z.enum(["ACTIVO", "BLOQUEADO"]).optional(),
+});
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\schemas\cliente.ts =====
+// schemas/clientes.ts
+import { z } from "zod";
+
+export const clienteSchema = z.object({
+  nombre: z.string().min(1, "El nombre es obligatorio"),
+  tipoId: z.enum(["CC", "TI", "CE", "PASAPORTE", "NIT"], {required_error: "El tipo de documento es obligatorio",}),
+  documento: z.string()
+    .min(1, "El documento es obligatorio")
+    .regex(/^[0-9]+$/, "El documento debe contener solo nÃºmeros ni espacios"),
+  direccion: z.string().optional(),
+  telefono: z.string()
+    .regex(/^[0-9]+$/, "El telÃ©fono debe contener solo nÃºmeros ni espacios")
+    .optional(),
+  estado: z.enum(["ACTIVO", "BLOQUEADO"]),
+});
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\schemas\clienteUpdate.ts =====
+// schemas/clienteUpdate.ts
+import { z } from "zod";
+
+export const clienteUpdateSchema = z.object({
+  nombre: z.string().min(1, "El nombre es obligatorio").optional(),
+  tipoId: z.enum(["CC", "TI", "CE", "PASAPORTE", "NIT"], {required_error: "El tipo de documento es obligatorio",}),
+  documento: z.string()
+    .min(1, "El documento es obligatorio")
+    .regex(/^[0-9]+$/, "El documento debe contener solo nÃºmeros ni espacios")
+    .optional(),
+  direccion: z.string().optional(),
+  telefono: z.string()
+    .regex(/^[0-9]+$/, "El telÃ©fono debe contener solo nÃºmeros ni espacios")
+    .optional(),
+  estado: z.enum(["ACTIVO", "BLOQUEADO"]).optional(),
+});
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\schemas\producto.ts =====
+import { z } from "zod";
+
+export const productoSchema = z.object({
+  nombre: z.string().min(1),
+  descripcion: z.string().optional(),
+  precio: z.number().positive(),
+  stock: z.number().int().min(0),
+  categoria: z.string().optional(),
+  unidad: z.string().optional(),
+  imagen: z.string().optional(),
+  estado: z.enum(["ACTIVO", "BLOQUEADO"]),
+aliadoId: z.number().int().positive().nullable().optional(),
+
+  
+});
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\schemas\productoUpdate.ts =====
+// src/schemas/productoUpdate.ts
+import { z } from "zod";
+
+export const productoUpdateSchema = z.object({
+  nombre: z.string().min(1).optional(),
+  descripcion: z.string().optional(),
+  precio: z.number().positive().optional(),
+  stock: z.number().int().min(0).optional(),
+  categoria: z.string().optional(),
+  unidad: z.string().optional(),
+  imagen: z.string().optional(),
+  estado: z.enum(["ACTIVO", "BLOQUEADO"]).optional(),
+  aliadoId: z.number().int().positive().nullable().optional(),
+});
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\schemas\usuario.ts =====
+import { z } from "zod";
+
+export const usuarioSchema = z.object({
+  nombre: z.string()
+    .min(4, "El nombre debe tener al menos 4 caracteres")
+    .regex(/^[a-zA-ZÃÃ‰ÃÃ“ÃšÃ¡Ã©Ã­Ã³ÃºÃ‘Ã±\s]+$/, "El nombre solo puede contener letras y espacios"),
+
+  tipoId: z.enum(["CC", "TI", "CE", "PASAPORTE", "NIT"], {
+    required_error: "El tipo de documento es obligatorio",
+  }),
+
+  documento: z.string()
+    .min(1, "El documento es obligatorio")
+    .regex(/^[0-9]+$/, "El documento debe contener solo nÃºmeros ni espacios"),
+
+  correo: z.string()
+    .email("Correo invÃ¡lido")
+    .transform((val) => val.toLowerCase()),
+
+  telefono: z.string()
+    .regex(/^[0-9]+$/, "El telÃ©fono debe contener solo nÃºmeros")
+    .optional(),
+
+  rol: z.enum(["ADMIN", "TRABAJADOR", "USUARIO"]),
+
+  password: z.string()
+    .min(6, "La contraseÃ±a debe tener al menos 6 caracteres")
+    .regex(/^[a-zA-Z0-9]+$/, "La contraseÃ±a solo puede contener letras y nÃºmeros")
+    .optional(),
+
+  estado: z.enum(["ACTIVO", "BLOQUEADO"]),
+});
+
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\schemas\usuarioPublic.ts =====
+import { z } from "zod";
+
+export const usuarioPublicSchema = z.object({
+  nombre: z.string()
+    .min(4, "El nombre debe tener al menos 4 caracteres")
+    .regex(/^[a-zA-ZÃÃ‰ÃÃ“ÃšÃ¡Ã©Ã­Ã³ÃºÃ‘Ã±\s]+$/, "El nombre solo puede contener letras y espacios"),
+  correo: z.string()
+    .email("Correo invÃ¡lido")
+    .transform((val) => (val ? val.toLowerCase() : val)),
+  password: z.string()
+    .min(6, "La contraseÃ±a debe tener al menos 6 caracteres")
+    .regex(/^[a-zA-Z0-9]+$/, "La contraseÃ±a solo puede contener letras y nÃºmeros"),
+});
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\schemas\usuarioUpdate.ts =====
+import { z } from "zod";
+
+export const usuarioUpdateSchema = z.object({
+  nombre: z.string()
+    .min(4, "El nombre debe tener al menos 4 caracteres")
+    .regex(/^[a-zA-ZÃÃ‰ÃÃ“ÃšÃ¡Ã©Ã­Ã³ÃºÃ‘Ã±\s]+$/, "El nombre solo puede contener letras y espacios")
+    .optional(),
+
+  tipoId: z.enum(["CC", "TI", "CE", "PASAPORTE", "NIT"]).optional(),
+
+  documento: z.string()
+    .min(1, "El documento es obligatorio")
+    .regex(/^[0-9]+$/, "El documento debe contener solo nÃºmeros ni espacios")
+    .optional(),
+
+  correo: z.string()
+    .email("Correo invÃ¡lido")
+    .transform((val) => val.toLowerCase())
+    .optional(),
+
+  telefono: z.string()
+    .regex(/^[0-9]+$/, "El telÃ©fono debe contener solo nÃºmeros")
+    .optional(),
+
+  rol: z.enum(["ADMIN", "TRABAJADOR", "USUARIO"]).optional(),
+
+  password: z.string()
+    .min(6, "La contraseÃ±a debe tener al menos 6 caracteres")
+    .regex(/^[a-zA-Z0-9]+$/, "La contraseÃ±a solo puede contener letras y nÃºmeros")
+    .optional(),
+
+  estado: z.enum(["ACTIVO", "BLOQUEADO"]).optional(),
+});
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\schemas\venta.ts =====
+import { z } from "zod";
+
+export const ventaItemSchema = z.object({
+  productoId: z.number().int().positive(),
+  cantidad: z.number().int().min(1),
+  precioUnitario: z.number().positive(),
+  descuento: z.number().nonnegative().optional(),
+  iva: z.number().nonnegative().optional(),
+  observaciones: z.string().optional(),
+});
+
+export const ventaSchema = z.object({
+  clienteId: z.number().int().positive(),
+  metodoPago: z.enum(["EFECTIVO", "TARJETA", "TRANSFERENCIA", "OTRO"]),
+  observaciones: z.string().optional(),
+  impuesto: z.number().nonnegative().optional(),
+  descuento: z.number().nonnegative().optional(),
+  items: z.array(ventaItemSchema).min(1, "Debe haber al menos un producto en la venta"),
+});
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\schemas\ventaProducto.ts =====
+import { z } from "zod";
+
+export const ventaProductoCreateSchema = z.object({
+  productoId: z.number().int().positive(),
+  cantidad: z.number().int().min(1),
+  precioUnitario: z.number().positive(),
+  descuento: z.number().nonnegative().optional(),
+  iva: z.number().nonnegative().optional(),
+  observaciones: z.string().optional(),
+});
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\schemas\ventaProductoUpdate.ts =====
+import { z } from "zod";
+
+export const ventaProductoUpdateSchema = z.object({
+  productoId: z.number().int().positive().optional(), // por si se reasigna a otro producto
+  cantidad: z.number().int().min(1).optional(),
+  precioUnitario: z.number().positive().optional(),
+  subtotal: z.number().nonnegative().optional(),
+  descuento: z.number().nonnegative().optional(),
+  iva: z.number().nonnegative().optional(),
+  observaciones: z.string().optional(),
+});
+  
+
+

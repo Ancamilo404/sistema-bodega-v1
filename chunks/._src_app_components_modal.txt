@@ -1,0 +1,508 @@
+﻿===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\components\modal\AddEditModal.tsx =====
+'use client';
+import React, { useState, useRef, useEffect } from 'react';
+import ModalBase from './ModalBase';
+import { formSchemas } from './formSchemas';
+import toast from 'react-hot-toast';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
+
+interface AddEditModalProps {
+  entity: keyof typeof formSchemas;
+  initialData?: any;
+  onClose: () => void;
+  onSuccess: (data: any) => void;
+}
+
+export default function AddEditModal({
+  entity,
+  initialData,
+  onClose,
+  onSuccess,
+}: AddEditModalProps) {
+  const schema = formSchemas[entity];
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Estado del formulario
+  const [formData, setFormData] = useState(
+    schema.reduce((acc, field) => {
+      // âš¡ Password siempre inicia vacÃ­o en ediciÃ³n
+      if (field.name === 'password') {
+        acc[field.name] = '';
+      } else if (initialData?.[field.name] !== undefined && initialData?.[field.name] !== null) {
+        // âš¡ Si es numÃ©rico, convertir a string para que el input number lo muestre
+        acc[field.name] = field.type === 'number'
+          ? String(initialData[field.name])
+          : String(initialData[field.name]);
+      } else {
+        acc[field.name] = '';
+      }
+      return acc;
+    }, {} as Record<string, any>)
+  );
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [imagePreview, setImagePreview] = useState<string>(initialData?.imagen || '');
+
+  // Estado para opciones async
+  const [asyncOptions, setAsyncOptions] = useState<Record<string, any[]>>({});
+  const [loadingOptions, setLoadingOptions] = useState<Record<string, boolean>>({});
+
+  // Cargar opciones async al montar
+  useEffect(() => {
+    schema.forEach(async field => {
+      if (field.type === 'select-async' && field.endpoint) {
+        setLoadingOptions(prev => ({ ...prev, [field.name]: true }));
+        try {
+          const res = await fetch(field.endpoint);
+          const json = await res.json();
+          setAsyncOptions(prev => ({
+            ...prev,
+            [field.name]: json.data || [],
+          }));
+        } catch (error) {
+          console.error(`Error cargando opciones para ${field.name}:`, error);
+          toast.error(`Error al cargar ${field.label}`);
+        } finally {
+          setLoadingOptions(prev => ({ ...prev, [field.name]: false }));
+        }
+      }
+    });
+  }, [schema]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+
+    if (name === 'imagen' && value.startsWith('http')) {
+      setImagePreview(value);
+    }
+    if (errors[name]) {
+      setErrors({ ...errors, [name]: false });
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Solo se permiten imÃ¡genes');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('La imagen no debe superar 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setFormData({ ...formData, imagen: base64 });
+      setImagePreview(base64);
+      toast.success('Imagen cargada correctamente');
+    };
+    reader.onerror = () => {
+      toast.error('Error al cargar la imagen');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const newErrors: Record<string, boolean> = {};
+    schema.forEach(field => {
+      if (field.required && !formData[field.name]) {
+        newErrors[field.name] = true;
+      }
+    });
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error('Por favor completa todos los campos requeridos');
+      return;
+    }
+
+    // âš¡ Preparar payload
+    const payload = { ...formData };
+
+    // Si password estÃ¡ vacÃ­o en ediciÃ³n, no lo mandamos
+    if (!payload.password?.trim()) {
+      delete payload.password;
+    }
+
+    // Convertir valores numÃ©ricos
+    if (payload.precio !== undefined && payload.precio !== '') {
+      payload.precio = Number(payload.precio);
+    }
+    if (payload.stock !== undefined && payload.stock !== '') {
+      payload.stock = Number(payload.stock);
+    }
+    if (payload.impuesto !== undefined && payload.impuesto !== '') {
+      payload.impuesto = Number(payload.impuesto);
+    }
+    if (payload.descuento !== undefined && payload.descuento !== '') {
+      payload.descuento = Number(payload.descuento);
+    }
+    if (payload.clienteId !== undefined && payload.clienteId !== '') {
+      payload.clienteId = Number(payload.clienteId);
+    }
+
+    // âš¡ Ajuste para aliadoId
+    if (payload.aliadoId === '' || payload.aliadoId === null) {
+      payload.aliadoId = null; // en update debe ir null
+    } else {
+      payload.aliadoId = Number(payload.aliadoId);
+    }
+
+    const url = initialData ? `/api/${entity}s/${initialData.id}` : `/api/${entity}s`;
+    const method = initialData ? 'PUT' : 'POST';
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+
+      if (res.ok) {
+        toast.success(json.message || `${entity} guardado correctamente`);
+        onSuccess(json.data);
+      } else {
+        toast.error(json.error || 'Error en operaciÃ³n');
+      }
+    } catch (error) {
+      console.error('Error en submit:', error);
+      toast.error('Error de conexiÃ³n');
+    }
+  };
+
+  return (
+    <ModalBase title={initialData ? `Editar ${entity}` : `Registrar ${entity}`} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="modal-form">
+        {schema.map(field => (
+          <div key={field.name}>
+            <label>{field.label}</label>
+
+            {field.name === 'password' ? (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name={field.name}
+                  value={formData[field.name]}
+                  onChange={handleChange}
+                  className={errors[field.name] ? 'input-error' : ''}
+                  placeholder={initialData ? 'Deja vacÃ­o para mantener la contraseÃ±a' : ''}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(prev => !prev)}
+                  className="btn-toggle-password"
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
+            ) : field.type === 'select' ? (
+              <select
+                name={field.name}
+                value={formData[field.name]}
+                onChange={handleChange}
+                required={field.required}
+                className={errors[field.name] ? 'input-error' : ''}
+              >
+                {field.options?.map(opt => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            ) : field.type === 'select-async' ? (
+              <select
+                name={field.name}
+                value={formData[field.name]}
+                onChange={handleChange}
+                required={field.required}
+                className={errors[field.name] ? 'input-error' : ''}
+                disabled={loadingOptions[field.name]}
+              >
+                <option value="">Ninguno</option>
+                {(asyncOptions[field.name] || []).map((item: any) => (
+                  <option key={item.id} value={item.id}>
+                    {item.nombre} {item.documento ? `(${item.documento})` : ''}
+                  </option>
+                ))}
+              </select>
+            ) : field.type === 'image' ? (
+              <div className="image-input-container">
+                <input
+                  type="text"
+                  name={field.name}
+                  value={formData[field.name]}
+                  onChange={handleChange}
+                  placeholder="Pega una URL o sube un archivo"
+                  className={errors[field.name] ? 'input-error' : ''}
+                />
+                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="btn-upload-image"
+                  >
+                    ðŸ“ Subir archivo
+                  </button>
+                  {imagePreview && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData({ ...formData, imagen: '' });
+                        setImagePreview('');
+                      }}
+                      className="btn-clear-image"
+                    >
+                      ðŸ—‘ï¸ Limpiar
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  style={{ display: 'none' }}
+                />
+                {imagePreview && (
+                  <div className="image-preview">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '200px',
+                        borderRadius: '8px',
+                        marginTop: '12px',
+                      }}
+                    />
+                  </div>
+                )}
+                {field.help && (
+                  <small style={{ color: '#666', fontSize: '12px' }}>{field.help}</small>
+                )}
+              </div>
+            ) : (
+              <input
+                type={field.type}
+                name={field.name}
+                value={formData[field.name]}
+                onChange={handleChange}
+                required={field.required}
+                step={field.step}
+                className={errors[field.name] ? 'input-error' : ''}
+              />
+            )}
+          </div>
+        ))}
+
+        <button type="submit" className="btn-submit-modal">
+          {initialData ? 'Guardar cambios' : 'Registrar'}
+        </button>
+      </form>
+    </ModalBase>
+  );
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\components\modal\DeleteConfirmModal.tsx =====
+"use client";
+import React from "react";
+import ModalBase from "./ModalBase";
+import toast from "react-hot-toast";
+
+interface DeleteConfirmModalProps {
+  entity: "cliente" | "aliado" | "usuario" | "producto";
+  id: number;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export default function DeleteConfirmModal({ entity, id, onClose, onSuccess }: DeleteConfirmModalProps) {
+  const handleDelete = async () => {
+    const res = await fetch(`/api/${entity}s/${id}`, { method: "DELETE" });
+    const json = await res.json();
+
+    if (res.ok) {
+      toast.success(`${entity.charAt(0).toUpperCase() + entity.slice(1)} archivado correctamente`);
+      onSuccess();
+    } else {
+      toast.error(json.error || `Error al archivar ${entity}`);
+    }
+  };
+
+  return (
+    <ModalBase title={`Eliminar ${entity.charAt(0).toUpperCase() + entity.slice(1)}`} onClose={onClose}>
+      <p>Â¿Seguro que deseas eliminar este {entity}?</p>
+      <div className="modal-actions">
+        <button onClick={handleDelete} className="btn-danger">Eliminar</button>
+        <button onClick={onClose} className="btn-secondary">Cancelar</button>
+      </div>
+    </ModalBase>
+  );
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\components\modal\formSchemas.ts =====
+// src/app/components/modal/formSchemas.ts
+export const formSchemas = {
+  cliente: [
+    { name: "nombre", label: "Nombre", type: "text", required: true },
+    { name: "tipoId", label: "Tipo Documento", type: "select", options: ["...","CC","TI","CE","PASAPORTE","NIT"], required: true },
+    { name: "documento", label: "Documento", type: "text", required: true },
+    { name: "direccion", label: "DirecciÃ³n", type: "text" },
+    { name: "telefono", label: "TelÃ©fono", type: "text" },
+    { name: "estado", label: "Estado", type: "select", options: ["...","ACTIVO","BLOQUEADO"], required: true },
+  ],
+  aliado: [
+    { name: "nombre", label: "Nombre", type: "text", required: true },
+    { name: "tipoId", label: "Tipo Documento", type: "select", options: ["...","CC","TI","CE","PASAPORTE","NIT"], required: true },
+    { name: "documento", label: "Documento", type: "text", required: true },
+    { name: "telefono", label: "TelÃ©fono", type: "text" },
+    { name: "correo", label: "Correo", type: "email" },
+    { name: "direccion", label: "DirecciÃ³n", type: "text" },
+    { name: "imagen", label: "Imagen", type: "image", help: "Puedes pegar una URL o subir un archivo" }, // â¬…ï¸ NUEVO tipo especial
+    { name: "estado", label: "Estado", type: "select", options: ["...","ACTIVO","BLOQUEADO"], required: true },
+  ],
+  usuario: [
+    { name: "nombre", label: "Nombre", type: "text", required: true },
+    { name: "tipoId", label: "Tipo Documento", type: "select", options: ["...","CC","TI","CE","PASAPORTE","NIT"], required: true },
+    { name: "documento", label: "NÃºmero de Documento", type: "text", required: true },
+    { name: "correo", label: "Correo", type: "email", required: true },
+    { name: "telefono", label: "TelÃ©fono", type: "text" },
+    { name: "rol", label: "Rol", type: "select", options: ["...","ADMIN","TRABAJADOR","USUARIO"], required: true },
+    { name: "estado", label: "Estado", type: "select", options: ["...","ACTIVO","BLOQUEADO"], required: true },
+    { name: "password", label: "ContraseÃ±a", type: "password" }, // opcional
+  ],
+
+
+  // âœ… NUEVO: Producto
+  producto: [
+    { name: "nombre", label: "Nombre", type: "text", required: true },
+    { name: "descripcion", label: "DescripciÃ³n", type: "text" },
+    { name: "precio", label: "Precio", type: "number", required: true, step: "0.01" },
+    { name: "stock", label: "Stock", type: "number", required: true },
+    { name: "categoria", label: "CategorÃ­a", type: "text" },
+    { name: "unidad", label: "Unidad", type: "select", options: ["...","kg","unidad","caja","litro","metro"], required: false },
+    { name: "imagen", label: "Imagen", type: "image", help: "Puedes pegar una URL o subir un archivo" },
+    { name: "aliadoId", label: "Aliado", type: "select-async", endpoint: "/api/aliados", required: false },
+    { name: "estado", label: "Estado", type: "select", options: ["...","ACTIVO","BLOQUEADO"], required: true },
+  ],
+
+  // âœ… NUEVO: Venta (simplificado - para crear venta EN_PROCESO)
+  venta: [
+    { name: "clienteId", label: "Cliente", type: "select-async", endpoint: "/api/clientes", required: true },
+    { name: "metodoPago", label: "MÃ©todo de Pago", type: "select", options: ["...","EFECTIVO","TARJETA","TRANSFERENCIA","OTRO"], required: true },
+    { name: "observaciones", label: "Observaciones", type: "text" },
+    { name: "impuesto", label: "Impuesto", type: "number", step: "0.01" },
+    { name: "descuento", label: "Descuento", type: "number", step: "0.01" },
+  ],
+};
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\components\modal\ModalBase.tsx =====
+// src/app/components/modal/ModalBase.tsx
+"use client";
+import React from "react";
+
+interface ModalBaseProps {
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+}
+
+export default function ModalBase({ title, children, onClose }: ModalBaseProps) {
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <header className="modal-header">
+          <h2>{title}</h2>
+          <button onClick={onClose} className="close-btn">âœ•</button>
+        </header>
+        <div className="modal-body">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+
+===== C:\Users\LEO\Desktop\AncamiloProgrm\app-beta-5\src\app\components\modal\PerfilModal.tsx =====
+'use client';
+import React, { useState } from 'react';
+import ModalBase from './ModalBase';
+import toast from 'react-hot-toast';
+import { FaEye, FaEyeSlash } from "react-icons/fa";
+
+export default function PerfilModal({ user, onClose, onSuccess }: any) {
+  const [nombre, setNombre] = useState(user?.nombre || '');
+  const [correo, setCorreo] = useState(user?.correo || '');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await fetch('/api/auth/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, correo, password: password || undefined }),
+    });
+    const json = await res.json();
+    if (res.ok) {
+      toast.success('Perfil actualizado correctamente âœ…');
+      onSuccess(json.data);
+    } else {
+      toast.error(`Error: ${json.error || 'No se pudo actualizar el perfil'}`);
+    }
+  };
+
+  return (
+    <ModalBase title="Editar Perfil" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="form-perfil modal-form">
+        <label>Nombre</label>
+        <input
+          value={nombre}
+          onChange={e => setNombre(e.target.value)}
+          placeholder="Tu nombre"
+        />
+
+        <label>Correo</label>
+        <input
+          value={correo}
+          onChange={e => setCorreo(e.target.value)}
+          placeholder="Tu correo"
+        />
+
+        <label>ContraseÃ±a nueva</label>
+        <div className="password-field">
+          <input
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="Nueva contraseÃ±a"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(prev => !prev)}
+            className="btn-toggle-password"
+          >
+            {showPassword ? <FaEyeSlash /> : <FaEye />}
+          </button>
+        </div>
+
+        <button type="submit" className="btn-submit-modal">
+          Guardar cambios
+        </button>
+      </form>
+    </ModalBase>
+  );
+}
+
+

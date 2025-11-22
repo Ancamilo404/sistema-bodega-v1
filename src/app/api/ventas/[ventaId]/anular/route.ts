@@ -1,0 +1,82 @@
+import { prisma } from "@/lib/prisma";
+import { response } from "@/lib/response";
+import { getAuthUser } from "@/lib/getAuthUser";
+import { validateVentaEntities } from "@/lib/validateVentaEntities";
+
+export async function PATCH(req: Request, { params }: { params: { ventaId: string } }) {
+  try {
+    const user = await getAuthUser(req);
+    if (!user || !["ADMIN", "TRABAJADOR"].includes(user.rol)) {
+      return response({ error: "No autorizado" }, 403);
+    }
+
+    const ventaId = Number(params.ventaId);
+    if (Number.isNaN(ventaId)) return response({ error: "ID inválido" }, 400);
+
+    const ip = req.headers.get("x-forwarded-for") || req.headers.get("remote-addr") || undefined;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const venta = await tx.venta.findUnique({
+        where: { id: ventaId },
+        include: { cliente: true, items: { include: { producto: true } } },
+      });
+
+      if (!venta) throw new Error("Venta no encontrada");
+      if (venta.estado === "ANULADA") throw new Error("La venta ya está anulada");
+
+      // Validaciones centralizadas (usuario + cliente + productos)
+      await validateVentaEntities({
+        usuarioId: user.id,
+        clienteId: venta.clienteId,
+        items: venta.items.map(i => ({ productoId: i.productoId, cantidad: i.cantidad })),
+      });
+
+      // Si estaba confirmada, devolver stock
+      if (venta.estado === "CONFIRMADA") {
+        for (const item of venta.items) {
+          await tx.producto.update({
+            where: { id: item.productoId },
+            data: { stock: { increment: item.cantidad } },
+          });
+        }
+      }
+
+      // Marcar como ANULADA
+      const anulada = await tx.venta.update({
+        where: { id: ventaId },
+        data: { estado: "ANULADA" },
+        include: {
+          cliente: true,
+          usuario: true,
+          items: { include: { producto: true } },
+        },
+      });
+
+      // Registrar en historial
+      await tx.historial.create({
+        data: {
+          tipo: "ACTUALIZAR",
+          accion: `Venta ${anulada.referencia} anulada`,
+          entidad: "Venta",
+          entidadId: anulada.id,
+          usuarioId: user.id,
+          detalle: JSON.stringify({
+            total: anulada.total,
+            items: anulada.items.map(i => ({
+              producto: i.producto.nombre,
+              cantidad: i.cantidad,
+              subtotal: i.subtotal,
+            })),
+          }),
+          ip,
+        },
+      });
+
+      return anulada;
+    });
+
+    return response({ data: result, message: "Venta anulada correctamente" });
+  } catch (e: any) {
+    return response({ error: e.message || "Error al anular venta" }, 500);
+  }
+}

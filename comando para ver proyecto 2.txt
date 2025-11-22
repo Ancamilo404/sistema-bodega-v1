@@ -1,0 +1,200 @@
+﻿# =========================
+# Configuración general
+# =========================
+$OutputDir = ".\chunks"
+$MaxLines = 500    # tamaño de cada trozo en líneas (ajusta si quieres)
+$Roots = @(".\src", ".\prisma", ".\tests", ".\README.md", ".\jest.config.js")
+
+# Inclusión y exclusión de patrones
+$IncludePatterns = @("**/*.ts", "**/*.css", "**/*.prisma", "**/*.sql", "**/*.md", "jest.config.js", ".env")
+$ExcludePatterns = @("**/*.map", "**/node_modules/**", "**/.next/**", "**/dist/**")
+
+# Dependencias sugeridas (ajusta según necesites)
+$SuggestedDeps = @{
+"src\lib\auth.ts" = @("prisma\schema.prisma","src\middleware.ts") # Firma/verifica JWT, usa secreto de env y lo consume el middleware
+"src\lib\errors.ts" = @()                                         # Catálogo estático de errores comunes
+"src\lib\getAuthUser.ts" = @("src\middleware.ts")                 # Lee header x-auth-user que inyecta el middleware
+"src\lib\logHistorial.ts" = @("src\lib\prisma.ts","prisma\schema.prisma") # Inserta registros en tabla Historial vía Prisma
+"src\lib\prisma.ts" = @("prisma\schema.prisma")                   # Cliente Prisma conectado al schema
+"src\lib\response.ts" = @()                                       # Helper para respuestas JSON unificadas
+"src\lib\validateBody.ts" = @("zod")                              # Valida body contra schemas Zod
+"src\lib\validateVentaEntities.ts" = @("src\lib\prisma.ts","prisma\schema.prisma") # Verifica usuario, cliente y stock antes de venta
+
+"src\app\api\auth\login\route.ts" = @("src\lib\auth.ts","src\lib\logHistorial.ts","src\lib\response.ts","prisma\schema.prisma") # Genera token, registra login en historial
+"src\app\api\auth\logout\route.ts" = @("src\lib\logHistorial.ts","src\lib\response.ts") # Registra logout en historial
+"src\app\api\auth\register\route.ts" = @("src\lib\auth.ts","src\lib\logHistorial.ts","src\lib\response.ts","src\schemas\usuarioPublic.ts","prisma\schema.prisma") # Crea usuario público, valida con schema
+
+"src\app\api\usuarios\route.ts" = @("src\lib\prisma.ts","src\lib\response.ts","src\lib\logHistorial.ts","src\lib\validateBody.ts","src\schemas\usuario.ts","src\schemas\usuarioUpdate.ts") # CRUD usuarios con validación Zod
+"src\app\api\clientes\route.ts" = @("src\lib\prisma.ts","src\lib\response.ts","src\lib\logHistorial.ts","src\lib\validateBody.ts","src\schemas\cliente.ts","src\schemas\clienteUpdate.ts") # CRUD clientes
+"src\app\api\aliados\route.ts" = @("src\lib\prisma.ts","src\lib\response.ts","src\lib\logHistorial.ts","src\lib\validateBody.ts","src\schemas\aliado.ts","src\schemas\aliadoUpdate.ts") # CRUD aliados
+"src\app\api\productos\route.ts" = @("src\lib\prisma.ts","src\lib\response.ts","src\lib\logHistorial.ts","src\lib\validateBody.ts","src\schemas\producto.ts","src\schemas\productoUpdate.ts") # CRUD productos
+
+"src\app\api\ventas\route.ts" = @("src\lib\prisma.ts","src\lib\response.ts","src\lib\logHistorial.ts","src\lib\validateBody.ts","src\lib\validateVentaEntities.ts","src\schemas\venta.ts","prisma\schema.prisma") # Crea ventas, valida entidades y registra historial
+"src\app\api\ventas\[ventaId]\confirmar\route.ts" = @("src\lib\validateVentaEntities.ts","src\lib\logHistorial.ts","src\lib\prisma.ts","prisma\schema.prisma") # Confirma venta, valida stock y registra historial
+"src\app\api\ventas\[ventaId]\anular\route.ts" = @("src\lib\validateVentaEntities.ts","src\lib\logHistorial.ts","src\lib\prisma.ts","prisma\schema.prisma") # Anula venta, valida y registra historial
+"src\app\api\ventas\[ventaId]\items\route.ts" = @("src\lib\prisma.ts","src\lib\response.ts","src\schemas\ventaProducto.ts","src\schemas\ventaProductoUpdate.ts") # CRUD de ítems de venta
+
+"src\app\api\historial\route.ts" = @("src\lib\prisma.ts","src\lib\response.ts","src\types\historial.ts") # Lista historial con paginación
+"src\app\api\meta\dashboard\route.ts" = @("src\lib\prisma.ts","src\lib\response.ts","src\types\dashboard.ts") # KPIs globales
+"src\app\api\reportes\" = @("src\lib\prisma.ts","src\lib\response.ts","src\types\reportes.ts") # Reportes de clientes, productos, empleados, ventas
+
+"src\app\auditoria\page.tsx" = @("src\hooks\useHistorial.ts","src\types\historial.ts") # Consume hook de historial y muestra tabla
+"src\app\components\KPICard.tsx" = @() # Componente visual puro
+"src\app\dashboard\ClientesChart.tsx" = @("src\types\reportes.ts") # Gráfico de clientes usando datos de reportes
+"src\app\dashboard\EmpleadosChart.tsx" = @("src\types\reportes.ts") # Gráfico de empleados
+"src\app\dashboard\ProductosChart.tsx" = @("src\types\reportes.ts") # Gráfico de productos
+"src\app\dashboard\VentasTable.tsx" = @("src\types\reportes.ts") # Tabla de ventas por día
+"src\app\dashboard\estadisticas\page.tsx" = @("src\app\dashboard\ClientesChart.tsx","src\app\dashboard\EmpleadosChart.tsx","src\app\dashboard\ProductosChart.tsx","src\app\dashboard\VentasTable.tsx","src\app\components\KPICard.tsx") # Dashboard de estadísticas que integra KPIs y gráficos
+"src\app\login\page.tsx" = @("src\app\register\register.css","src\app\register\register2.css") # Formulario de login con estilos de register
+"src\app\register\page.tsx" = @("src\app\register\register.css","src\app\register\register2.css") # Formulario de registro
+"src\app\noAutorizado\page.tsx" = @() # Página estática de acceso denegado
+"src\app\layout.tsx" = @("src\app\globals.css") # Layout global con estilos base
+
+"src\hooks\useHistorial.ts" = @("src\types\historial.ts") # Hook que consume API de historial y tipa con DTO
+
+"src\schemas\aliado.ts" = @() # Validación de creación de aliado
+"src\schemas\aliadoUpdate.ts" = @() # Validación de actualización de aliado
+"src\schemas\cliente.ts" = @() # Validación de creación de cliente
+"src\schemas\clienteUpdate.ts" = @() # Validación de actualización de cliente
+"src\schemas\producto.ts" = @() # Validación de creación de producto
+"src\schemas\productoUpdate.ts" = @() # Validación de actualización de producto
+"src\schemas\usuario.ts" = @() # Validación de creación de usuario interno
+"src\schemas\usuarioUpdate.ts" = @() # Validación de actualización de usuario
+"src\schemas\usuarioPublic.ts" = @() # Validación de registro público
+"src\schemas\venta.ts" = @() # Validación de venta completa
+"src\schemas\ventaProducto.ts" = @() # Validación de ítem de venta
+"src\schemas\ventaProductoUpdate.ts" = @() # Validación de actualización de ítem de venta
+
+"src\types\dashboard.ts" = @() # Tipos de KPIs globales
+"src\types\historial.ts" = @() # DTO de historial
+"src\types\reportes.ts" = @() # Tipos de reportes (clientes, empleados, productos, ventas)
+
+"prisma\schema.prisma" = @("src\lib\prisma.ts","src\lib\auth.ts","src\lib\logHistorial.ts","src\lib\validateVentaEntities.ts","src\app\api\") # Define modelos base usados en todo el
+
+}
+
+# =========================
+# Utilidades
+# =========================
+function Convert-ToUnixPath([string]$p){ ($p -replace '\\','/') }
+function Match-Glob([string]$text,[string]$pattern){
+  $regex = ($pattern -replace '\.', '\.' -replace '\*', '.*' -replace '\?', '.')
+  return [bool]([regex]::IsMatch($text, "^$regex$"))
+}
+function Match-Any([string]$text,[array]$patterns){
+  foreach($pat in $patterns){ if (Match-Glob -text $text -pattern $pat){ return $true } }
+  return $false
+}
+
+# =========================
+# Priorización automática
+# =========================
+function Get-Priority([string]$fullPathUnix){
+  switch($true){
+    { $fullPathUnix -match "^src/app/api/auth/" } { return "CRITICAL" }
+    { $fullPathUnix -match "^src/lib/auth\.ts$" } { return "CRITICAL" }
+    { $fullPathUnix -match "^src/lib/getAuthUser\.ts$" } { return "CRITICAL" }
+    { $fullPathUnix -match "^src/middleware\.ts$" } { return "CRITICAL" }
+    { $fullPathUnix -match "^prisma/schema\.prisma$" } { return "CRITICAL" }
+    { $fullPathUnix -match "^src/app/api/(ventas|productos|usuarios|meta|aliados|reportes|clientes|historial)/" } { return "CRITICAL" }
+
+    { $fullPathUnix -match "^src/lib/" } { return "CORE" }
+    { $fullPathUnix -match "^src/schemas/" } { return "CORE" }
+    { $fullPathUnix -match "^src/types/" } { return "CORE" }
+
+    { $fullPathUnix -match "^tests/(unit|integration)/" } { return "TEST" }
+    { $fullPathUnix -match "^src/app/" } { return "UI" }
+
+    default { return "OTHER" }
+  }
+}
+
+# =========================
+# Chunking por líneas y creación de partes
+# =========================
+function Write-Chunks {
+  param([string]$FilePath,[int]$MaxLines,[string]$OutputDir)
+  $lines = Get-Content -LiteralPath $FilePath -ErrorAction Stop
+  $total = $lines.Count
+  if ($total -eq 0) { return @() }
+  $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $FilePath).Hash
+  $chunks = [math]::Ceiling($total / $MaxLines)
+  $relName = $FilePath -replace '[\\/:*?"<>|
+
+\[\]
+
+ ]','_'
+  $chunkFiles = @()
+  for ($i=0; $i -lt $chunks; $i++){
+    $start = $i * $MaxLines
+    $end = [math]::Min($start + $MaxLines, $total)
+    $chunkLines = $lines[$start..($end-1)]
+    $outName = "$relName`_part$($i+1).txt"
+    $outPath = Join-Path $OutputDir $outName
+    "===== $FilePath (parte $($i+1)/$chunks, líneas $($start+1)-$end) =====" | Out-File $outPath -Encoding utf8
+    $chunkLines | Out-File $outPath -Encoding utf8 -Append
+    $chunkFiles += [pscustomobject]@{ file=$FilePath; part=($i+1); total=$chunks; start=($start+1); end=$end; outPath=$outPath; hash=$hash }
+  }
+  return $chunkFiles
+}
+
+# =========================
+# Preparar salida y manifiesto
+# =========================
+New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
+$manifest = [System.Collections.Generic.List[object]]::new()
+
+function Should-Process([string]$fullPath){
+  $unix = Convert-ToUnixPath $fullPath
+  $include = Match-Any -text $unix -patterns $IncludePatterns
+  $exclude = Match-Any -text $unix -patterns $ExcludePatterns
+  return ($include -and -not $exclude)
+}
+
+# Escanear raíces y procesar
+foreach ($root in $Roots){
+  if (-not (Test-Path -LiteralPath $root)) { continue }
+  if (Test-Path -LiteralPath $root -PathType Container) {
+    Get-ChildItem -Recurse -File -LiteralPath $root | ForEach-Object {
+      $p = $_.FullName
+      if (-not (Should-Process $p)) { return }
+      $unix = Convert-ToUnixPath $p
+      $priority = Get-Priority $unix
+      $chunks = Write-Chunks -FilePath $p -MaxLines $MaxLines -OutputDir $OutputDir
+      if ($chunks.Count -gt 0) {
+        $rel = $p.Substring((Get-Item ".").FullName.Length).TrimStart('\','/')
+        $deps = @()
+        if ($SuggestedDeps.ContainsKey($rel)) { $deps = $SuggestedDeps[$rel] }
+        $manifest.Add([pscustomobject]@{ file=$rel; hash=$chunks[0].hash; parts=$chunks.Count; priority=$priority; dependsOn=$deps; chunks=$chunks })
+      }
+    }
+  } else {
+    # root es archivo
+    if (-not (Should-Process $root)) { continue }
+    $p = (Get-Item $root).FullName
+    $unix = Convert-ToUnixPath $p
+    $priority = Get-Priority $unix
+    $chunks = Write-Chunks -FilePath $p -MaxLines $MaxLines -OutputDir $OutputDir
+    if ($chunks.Count -gt 0) {
+      $rel = $p.Substring((Get-Item ".").FullName.Length).TrimStart('\','/')
+      $deps = @()
+      if ($SuggestedDeps.ContainsKey($rel)) { $deps = $SuggestedDeps[$rel] }
+      $manifest.Add([pscustomobject]@{ file=$rel; hash=$chunks[0].hash; parts=$chunks.Count; priority=$priority; dependsOn=$deps; chunks=$chunks })
+    }
+  }
+}
+
+# Orden recomendado de envío (por prioridad y nombre)
+$rankMap = @{ "CRITICAL"=1; "CORE"=2; "UI"=3; "TEST"=4; "OTHER"=5 }
+$ordered = $manifest | Sort-Object { $rankMap[$_.priority] }, @{Expression="file"; Ascending=$true}
+
+# Guardar manifiesto y árbol
+$manifestPath = Join-Path $OutputDir "manifest.json"
+$ordered | ConvertTo-Json -Depth 6 | Out-File $manifestPath -Encoding utf8
+
+$treePath = Join-Path $OutputDir "structure.txt"
+Get-ChildItem -Recurse -Force "." | ForEach-Object { $_.FullName } | Out-File $treePath -Encoding utf8
+
+Write-Host "Listo. Chunks en $OutputDir, manifiesto en $manifestPath, estructura en $treePath"
+
+

@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =======================
+// MODELOS PRINCIPALES
+// =======================
+
+model Cliente {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  tipoId    TipoDocumento            // "NIT" o "CC"
+  documento     String   @unique
+  direccion     String?
+  telefono      String?
+  fechaRegistro DateTime @default(now())
+  estado        EstadoRegistro
+   deletedAt     DateTime?
+  ventas        Venta[]
+}
+
+model Aliado {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  tipoId    TipoDocumento          // "NIT" o "CC"
+  documento     String   @unique
+  telefono      String?
+  correo        String?
+  direccion     String?
+  imagen        String?
+  deletedAt     DateTime?
+  fechaRegistro DateTime @default(now())
+  estado        EstadoRegistro
+  productos     Producto[]
+}
+
+model Usuario {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  tipoId        TipoDocumento       // 👈 nuevo campo
+  documento     String   @unique    // 👈 reemplaza cedula
+  correo        String   @unique
+  telefono      String?
+  rol           Rol
+  password      String?
+  estado        EstadoRegistro
+  fechaRegistro DateTime @default(now())
+  deletedAt     DateTime?
+  ventas        Venta[]
+  historial     Historial[]
+}
+
+model Producto {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  descripcion   String?
+  precio        Decimal  @db.Decimal(10,2)
+  stock         Int      @default(0)
+  categoria     String?
+  unidad        String?              // ej: kg, unidad, caja
+  imagen        String?
+  deletedAt     DateTime?
+  estado        EstadoRegistro
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+  aliadoId      Int?
+  aliado        Aliado?   @relation(fields: [aliadoId], references: [id])
+  items         VentaProducto[]
+}
+
+model Venta {
+  id            Int          @id @default(autoincrement())
+  referencia    String       @unique   // número de factura legible
+  fecha         DateTime     @default(now()) // fecha de negocio
+  total         Decimal      @db.Decimal(10,2)
+  estado        EstadoVenta  @default(EN_PROCESO)
+  metodoPago    MetodoPago
+  observaciones String?
+  impuesto      Decimal?     @db.Decimal(10,2)
+  descuento     Decimal?     @db.Decimal(10,2)
+  creadoEn      DateTime     @default(now()) // timestamp técnico
+  actualizadoEn DateTime     @updatedAt
+  clienteId     Int
+  usuarioId     Int
+  cliente       Cliente      @relation(fields: [clienteId], references: [id])
+  usuario       Usuario      @relation(fields: [usuarioId], references: [id])
+  items         VentaProducto[]
+}
+
+model VentaProducto {
+  id             Int      @id @default(autoincrement())
+  ventaId        Int
+  productoId     Int
+  cantidad       Int
+  precioUnitario Decimal   @db.Decimal(10,2)
+  subtotal       Decimal   @db.Decimal(10,2)
+  descuento      Decimal?  @db.Decimal(10,2)
+  iva            Decimal?  @db.Decimal(10,2)
+  observaciones  String?
+  producto       Producto @relation(fields: [productoId], references: [id])
+  venta          Venta    @relation(fields: [ventaId], references: [id])
+}
+
+model Historial {
+  id        Int      @id @default(autoincrement())
+  fecha     DateTime @default(now()) // momento de la acción
+  tipo      TipoAccion
+  accion    String
+  entidad   String?   // "Producto", "Venta", "Cliente", "Aliado", "Usuario"
+  entidadId Int?
+  detalle   String?
+  ip        String?
+  usuarioId Int
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id])
+
+  @@index([entidad, entidadId]) // índice compuesto para búsquedas rápidas
+}
+
+// =======================
+// ENUMS
+// =======================
+
+enum Rol {
+  ADMIN
+  TRABAJADOR
+  USUARIO        // cliente con login
+}
+
+enum TipoAccion {
+  CREAR
+  ACTUALIZAR
+  ELIMINAR
+  LOGIN
+  LOGOUT
+}
+
+enum MetodoPago {
+  EFECTIVO
+  TARJETA
+  TRANSFERENCIA
+  OTRO
+}
+
+enum EstadoVenta {
+  EN_PROCESO
+  CONFIRMADA
+  ANULADA
+}
+
+enum EstadoRegistro {
+  ACTIVO
+  BLOQUEADO
+}
+
+enum TipoDocumento {
+  CC
+  TI
+  CE
+  PASAPORTE
+  NIT
+}
